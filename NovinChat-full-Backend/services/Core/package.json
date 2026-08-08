@@ -1,0 +1,67 @@
+{
+    "name": "novin-chat",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "cross-env LOG_LEVEL=error NODE_ENV=test vitest run",
+        "test:watch": "cross-env LOG_LEVEL=error NODE_ENV=test vitest",
+        "test:coverage": "cross-env LOG_LEVEL=error NODE_ENV=test vitest run --coverage",
+        "migrate": "sequelize db:migrate",
+        "migrate:fresh": "sequelize db:migrate:undo:all",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier . --write",
+        "build": "tsc"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devEngines": {
+        "packageManager": {
+            "name": "pnpm",
+            "version": "^11.3.0",
+            "onFail": "download"
+        }
+    },
+    "type": "module",
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^25.9.1",
+        "@types/supertest": "^7.2.1",
+        "@types/swagger-jsdoc": "^6.0.4",
+        "@types/swagger-ui-express": "^4.1.8",
+        "@vitest/coverage-v8": "^4.1.7",
+        "cross-env": "^10.1.0",
+        "eslint": "^10.7.0",
+        "eslint-config-prettier": "^10.1.8",
+        "globals": "^17.7.0",
+        "prettier": "^3.9.5",
+        "sequelize-cli": "^6.6.5",
+        "supertest": "^7.2.2",
+        "swagger-jsdoc": "^6.3.0",
+        "swagger-ui-express": "^5.0.1",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.64.0",
+        "vitest": "^4.1.7"
+    },
+    "dependencies": {
+        "@types/bcrypt": "^6.0.0",
+        "bcrypt": "^6.0.0",
+        "dotenv": "^17.4.2",
+        "express": "^5.2.1",
+        "helmet": "^8.2.0",
+        "i": "^0.3.7",
+        "jsonwebtoken": "^9.0.3",
+        "pg": "^8.21.0",
+        "pg-hstore": "^2.3.4",
+        "pino": "^10.3.1",
+        "pino-http": "^11.0.0",
+        "pino-pretty": "^13.1.3",
+        "pnpm": "^11.3.0",
+        "sequelize": "^6.37.8",
+        "zod": "^4.4.3"
+    }
+}

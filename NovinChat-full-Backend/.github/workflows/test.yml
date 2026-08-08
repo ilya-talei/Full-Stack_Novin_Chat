@@ -1,0 +1,38 @@
+name: Run Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and start containers
+        working-directory: deploy
+        run: docker compose -f compose.test.yml up -d --build
+
+      - name: Run Core service tests
+        working-directory: deploy
+        run: docker compose -f compose.test.yml run --rm core_service pnpm test
+
+      - name: Run TenantCore service tests
+        working-directory: deploy
+        run: docker compose -f compose.test.yml run --rm tenant_core_service pnpm test
+
+      - name: Show logs on failure
+        if: failure()
+        working-directory: deploy
+        run: docker compose -f compose.test.yml logs
+
+      - name: Clean up
+        if: always()
+        working-directory: deploy
+        run: docker compose -f compose.test.yml down -v --remove-orphans

@@ -1,0 +1,44 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    
+    repositories {
+        // Mirrors first (dl.google.com often unreachable / returns 404 in some regions)
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven' }
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.google.gms:google-services:4.4.4'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+def mirrorRepos = {
+    // Must also cover subproject buildscripts (e.g. :capacitor-android)
+    maven { url 'https://maven.aliyun.com/repository/google' }
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    maven { url 'https://repo.huaweicloud.com/repository/maven' }
+    maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public' }
+    google()
+    mavenCentral()
+}
+
+allprojects {
+    buildscript {
+        repositories mirrorRepos
+    }
+    repositories mirrorRepos
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

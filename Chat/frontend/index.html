@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fa" class="dark" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=2" width="26" height="26" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" width="16" height="16" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>نوین چت</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('novin_theme') || 'dark';
+          var isDark = theme === 'dark';
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

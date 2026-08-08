@@ -1,0 +1,48 @@
+export const API_ENDPOINTS = {
+  AUTH: {
+    LOGIN: '/auth/login',
+    REFRESH: '/auth/token',
+    LOGOUT: '/auth/logout',
+    ME: '/auth/me',
+  },
+  CHAT: {
+    CONVERSATIONS: '/chats',
+    CONVERSATION: (chatId) => `/chats/${chatId}`,
+    MESSAGES: '/messages',
+    CREATE: '/chats',
+    CREATE_GROUP: '/chats',
+    CREATE_CHANNEL: '/chats',
+    START_CHAT: '/chats/private',
+    MARK_READ: (chatId) => `/chats/${chatId}/read`,
+    UPDATE: (chatId) => `/chats/${chatId}`,
+    UPLOAD_MEDIA: (chatId) => `/chats/${chatId}/media`,
+    MEDIA: (chatId, fileName, storage = 'local') =>
+      `/chats/${chatId}/media/${encodeURIComponent(fileName)}?storage=${storage}`,
+  },
+  CONTACTS: {
+    LIST: '/contacts',
+    ADD: '/contacts',
+    REMOVE: (id) => `/contacts/${id}`,
+    BLOCK: (id) => `/contacts/${id}/block`,
+    SEARCH: '/contacts/search',
+  },
+  USER: {
+    PROFILE: '/users/profile',
+    UPDATE_PROFILE: '/users/profile',
+    PUBLIC_PROFILE: (id) => `/users/${id}/profile`,
+    DELETE_ACCOUNT: '/users/account',
+    CHANGE_PASSWORD: '/users/change-password',
+    SEARCH: '/users/search',
+    SETTINGS: '/users/settings',
+    SESSIONS: '/users/sessions',
+    TERMINATE_OTHER_SESSIONS: '/users/sessions/terminate-others',
+    AVATAR: '/users/avatar',
+  },
+  NOTIFICATIONS: {
+    LIST: '/notifications',
+    MARK_READ: (id) => `/notifications/${id}/read`,
+    MARK_ALL: '/notifications/read-all',
+    DELETE: (id) => `/notifications/${id}`,
+    DELETE_ALL: '/notifications',
+  },
+};

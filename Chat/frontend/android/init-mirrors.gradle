@@ -1,0 +1,38 @@
+/**
+ * Force Maven mirrors for every project buildscript (Capacitor modules included).
+ * Needed when dl.google.com returns 404 / is blocked.
+ *
+ * Usage: gradlew assembleDebug --init-script init-mirrors.gradle
+ */
+def addMirrors = { RepositoryHandler repos ->
+    repos.maven { url 'https://maven.aliyun.com/repository/google' }
+    repos.maven { url 'https://maven.aliyun.com/repository/public' }
+    repos.maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+    repos.maven { url 'https://repo.huaweicloud.com/repository/maven' }
+    repos.maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public' }
+}
+
+settingsEvaluated { settings ->
+    settings.pluginManagement.repositories {
+        addMirrors(it)
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+gradle.beforeProject { project ->
+    project.buildscript.repositories {
+        addMirrors(it)
+    }
+}
+
+gradle.projectsLoaded {
+    rootProject.allprojects { project ->
+        project.repositories {
+            addMirrors(it)
+            google()
+            mavenCentral()
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "appId": "com.novin.chat",
+  "appName": "نوین چت",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0f1419"
+  },
+  "plugins": {}
+}

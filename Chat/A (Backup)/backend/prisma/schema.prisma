@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  employee_id     Int?
+  phone           String?   @unique @db.VarChar(11)
+  role_id         Int?
+  login_id        String    @unique @db.VarChar(32)
+  display_name    String?   @db.VarChar(64)
+  email           String?   @db.VarChar(128)
+  bio             String    @db.Text @default("")
+  hashed_password String    @db.Text
+  last_login_at   DateTime  @default(now())
+  active          Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+
+  sessions          Session[]
+  ownedChats        Chat[]
+  messages          Message[]
+  joinedChats       ChatMember[]
+  userAvatar        UserAvatar[]
+  contactsOwned     Contact[]      @relation("ContactOwner")
+  contactsLinked    Contact[]      @relation("ContactTarget")
+  notifications     Notification[]
+  settings          UserSettings?
+
+  @@map("users")
+}
+
+model UserAvatar {
+  id               Int       @id @default(autoincrement())
+  user_id          Int
+  avatar_file_name String
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
+}
+
+model Session {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  ip_address String?
+  user_agent String?
+  active     Boolean  @default(true)
+  created_at DateTime @default(now())
+  expire_at  DateTime
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Chat {
+  id                Int        @id @default(autoincrement())
+  type              String     @db.VarChar(32)
+  private_chat_key  String?    @db.VarChar(32) @unique
+  owner_id          Int?
+  chat_name         String?    @db.VarChar(255)
+  pinned_message_id Int?
+  description       String     @db.Text @default("")
+  avatar_file_name  String?    @db.Text
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  deleted_at        DateTime?
+
+  owner    User?        @relation(fields: [owner_id], references: [id], onDelete: SetNull)
+  messages Message[]
+  members  ChatMember[]
+
+  @@index([owner_id])
+  @@map("chats")
+}
+
+model ChatMember {
+  id                   Int       @id @default(autoincrement())
+  chat_id              Int
+  user_id              Int
+  last_read_message_id Int?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  deleted_at           DateTime?
+
+  chat Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([chat_id, user_id])
+  @@map("chat_members")
+}
+
+model Message {
+  id           Int        @id @default(autoincrement())
+  chat_id      Int
+  sender_id    Int
+  message_type String     @db.VarChar(32)
+  message_uuid String     @db.VarChar(36) @unique
+  message_data Json
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+  deleted_at   DateTime?
+
+  chat   Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([chat_id, sender_id, created_at])
+  @@map("messages")
+}
+
+model Contact {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  contact_user_id Int
+  blocked         Boolean   @default(false)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+
+  owner   User @relation("ContactOwner", fields: [user_id], references: [id], onDelete: Cascade)
+  contact User @relation("ContactTarget", fields: [contact_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, contact_user_id])
+  @@map("contacts")
+}
+
+model Notification {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  type       String    @db.VarChar(32)
+  title      String    @db.VarChar(128)
+  body       String    @db.Text
+  read       Boolean   @default(false)
+  meta       Json?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, read])
+  @@map("notifications")
+}
+
+model UserSettings {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  prefs      Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
