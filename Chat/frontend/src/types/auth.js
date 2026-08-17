@@ -82,5 +82,13 @@ export function mapAuthResponse(data) {
  * @returns {string}
  */
 export function getAuthErrorMessage(error, fallback) {
+  if (!error.response) {
+    const base = (error.config?.baseURL || '').replace(/\/$/, '');
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      return base
+        ? `اتصال به سرور برقرار نشد (${base}). وای‌فای و آدرس API را چک کنید.`
+        : 'اتصال به سرور برقرار نشد. شبکه را چک کنید.';
+    }
+  }
   return error.response?.data?.message || error.message || fallback;
 }

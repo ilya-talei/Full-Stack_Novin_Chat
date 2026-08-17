@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from "../generated/prisma/client.js";
 import { AppError } from "../middlewares/errorMiddleware.js";
 import type { Services } from "../middlewares/tenantMiddleware.js";
 import type { messageType } from "./chatService.js";
+import { assertSendPermission, classifyContentPermission } from "./chatPermissions.js";
 
 export type SendMessageDataType = {
     // id: number,
@@ -96,8 +97,8 @@ class MessageService {
                         userAvatar: {
                             select: {
                                 avatar_file_name: true,
-                            }
-                        }
+                            },
+                        },
                     },
                 },
                 message_type: true,
@@ -155,9 +156,7 @@ class MessageService {
         return messagesWithoutDeleted.map((message) => {
             const isMine = message.sender.id === userId;
             const read =
-                isMine && showReceipts && peerLastRead != null
-                    ? message.id <= peerLastRead
-                    : false;
+                isMine && showReceipts && peerLastRead != null ? message.id <= peerLastRead : false;
             return { ...message, read };
         });
     }
@@ -166,12 +165,43 @@ class MessageService {
         userId: number,
         message: SendMessageDataType,
     ): Promise<SaveMessageToDbReturnType> {
-        const isJoinedToChat: boolean = await this.services!.ChatService.isUserJoinedToChat(
-            userId,
+        const content =
+            typeof message.message_data?.content === "string" ? message.message_data.content : "";
+        const access = await assertSendPermission(
+            this.prisma,
             message.chat_id,
+            userId,
+            classifyContentPermission(content),
         );
-        if (!isJoinedToChat) {
-            throw new AppError("دسترسی ممنوع", 403);
+
+        if (
+            access.role !== "owner" &&
+            access.role !== "admin" &&
+            access.chat.slow_mode_seconds > 0
+        ) {
+            const cutoff = new Date(Date.now() - access.chat.slow_mode_seconds * 1000);
+            const recentMessage = await this.prisma.message.findFirst({
+                where: {
+                    chat_id: message.chat_id,
+                    sender_id: userId,
+                    deleted_at: null,
+                    created_at: { gt: cutoff },
+                },
+                select: { created_at: true },
+                orderBy: { created_at: "desc" },
+            });
+            if (recentMessage) {
+                const waitSeconds = Math.max(
+                    1,
+                    Math.ceil(
+                        (recentMessage.created_at.getTime() +
+                            access.chat.slow_mode_seconds * 1000 -
+                            Date.now()) /
+                            1000,
+                    ),
+                );
+                throw new AppError(`حالت آهسته فعال است؛ ${waitSeconds} ثانیه صبر کنید`, 429);
+            }
         }
 
         message.message_data.sender_id = userId;

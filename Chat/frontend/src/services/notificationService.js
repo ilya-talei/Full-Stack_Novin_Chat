@@ -1,5 +1,6 @@
 import api from '@services/api';
 import { API_ENDPOINTS } from '@constants/apiEndpoints';
+import { config } from '@constants/config';
 
 export const notificationService = {
   async getNotifications() {
@@ -33,14 +34,19 @@ export const notificationService = {
 
 export { contactsService } from '@services/contactsService';
 
+function resolveAvatar(name, avatarFile) {
+  if (avatarFile && (String(avatarFile).startsWith('http://') || String(avatarFile).startsWith('https://'))) {
+    return avatarFile;
+  }
+  if (avatarFile && String(avatarFile).startsWith('/')) {
+    return `${config.apiBaseUrl || ''}${avatarFile}`;
+  }
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6A9BB8&color=fff`;
+}
+
 function mapUserProfile(user) {
   const name = user.name || user.display_name || user.username || user.login_id || 'کاربر';
   const avatarFile = user.avatar || user.avatar_file_name || null;
-  const avatar =
-    avatarFile &&
-    (String(avatarFile).startsWith('http://') || String(avatarFile).startsWith('https://'))
-      ? avatarFile
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6A9BB8&color=fff`;
 
   return {
     id: String(user.id),
@@ -49,7 +55,7 @@ function mapUserProfile(user) {
     phone: user.phone || null,
     email: user.email || null,
     bio: user.bio || '',
-    avatar,
+    avatar: resolveAvatar(name, avatarFile),
     lastSeenAt: user.last_login_at || user.lastSeenAt || null,
     status: user.status || null,
   };
@@ -86,7 +92,10 @@ export const profileService = {
     const { data } = await api.put(API_ENDPOINTS.USER.AVATAR, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data.avatar_file_name || data.avatar || data;
+    const value = data.avatar || data.avatar_file_name || data;
+    return typeof value === 'string' && value.startsWith('/')
+      ? `${config.apiBaseUrl || ''}${value}`
+      : value;
   },
 
   async changePassword(currentPassword, newPassword) {

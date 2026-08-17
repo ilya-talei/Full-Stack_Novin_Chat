@@ -41,6 +41,20 @@ class UserService {
             throw new AppError("کاربر یافت نشد", 404);
         }
 
+        const avatarFileName = user.userAvatar[0]?.avatar_file_name ?? null;
+        let avatar: string | null = null;
+        if (avatarFileName) {
+            if (/^https?:\/\//i.test(avatarFileName)) {
+                avatar = avatarFileName;
+            } else {
+                try {
+                    avatar = await this.services!.MinIOService.getUserAvatarUrl(avatarFileName);
+                } catch {
+                    avatar = `/users/avatar/${encodeURIComponent(avatarFileName)}`;
+                }
+            }
+        }
+
         return {
             id: String(user.id),
             username: user.login_id,
@@ -48,7 +62,7 @@ class UserService {
             email: user.email ?? `${user.login_id}@local.dev`,
             phone: user.phone,
             bio: user.bio,
-            avatar: user.userAvatar[0]?.avatar_file_name ?? null,
+            avatar,
             last_login_at: user.last_login_at,
             status: "online" as const,
         };
@@ -184,7 +198,7 @@ class UserService {
         });
     }
 
-    async uploadAvatar(file: Express.Multer.File, userId: number) {
+    async uploadAvatar(file: Express.Multer.File, userId: number, tenantId: number) {
         const user = await this.prismaClient.user.findFirst({
             where: {
                 id: userId,
@@ -203,9 +217,34 @@ class UserService {
             })
             .toBuffer();
 
-        const fileName = await this.services!.MinIOService.uploadUserAvatar(sharpedImage, userId);
+        let fileName = "";
+        try {
+            fileName = await this.services!.MinIOService.uploadUserAvatar(sharpedImage, userId);
+        } catch {
+            const { saveLocalUserAvatar } = await import("./localUserAvatar.js");
+            const saved = await saveLocalUserAvatar({
+                tenantId,
+                userId,
+                buffer: sharpedImage,
+            });
+            fileName = saved.fileName;
+        }
         await this.createUserAvatar(userId, fileName);
         return fileName;
+    }
+
+    async getAvatarStream(fileName: string, tenantId: number) {
+        const safe = String(fileName || "").replace(/[/\\]/g, "");
+        if (!safe) throw new AppError("فایل نامعتبر است", 400);
+        try {
+            const stream = await this.services!.MinIOService.getUserAvatarObject(safe);
+            return { stream, contentType: "image/webp" };
+        } catch {
+            const { openLocalUserAvatar } = await import("./localUserAvatar.js");
+            const stream = openLocalUserAvatar(tenantId, safe);
+            if (!stream) throw new AppError("تصویر پیدا نشد", 404);
+            return { stream, contentType: "image/webp" };
+        }
     }
 
     async deleteAccount(userId: number) {

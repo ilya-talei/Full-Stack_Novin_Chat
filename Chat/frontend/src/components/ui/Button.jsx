@@ -1,7 +1,7 @@
 const variants = {
-  primary: 'bg-npurple-borders hover:bg-[#4A97D6] text-white',
+  primary: 'bg-npurple-borders hover:bg-[#5A97C6] text-white',
   secondary: 'bg-surface-muted hover:bg-surface-soft text-ink',
-  outline: 'border border-hairline/15 text-ink hover:bg-surface-muted',
+  outline: 'border border-hairline/[0.1] text-ink hover:bg-surface-muted',
   ghost: 'text-ink-secondary hover:bg-surface-muted',
   danger: 'bg-nerror hover:bg-red-700 text-white',
 };

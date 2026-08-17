@@ -14,6 +14,7 @@ router.get("/:id/profile", userController.publicProfile);
 router.delete("/account", userController.deleteAccount);
 router.put("/me/avatar", userAvatarUpload.single("avatar"), userController.uploadAvatar);
 router.put("/avatar", userAvatarUpload.single("avatar"), userController.uploadAvatar);
+router.get("/avatar/:fileName", userController.getAvatar);
 
 router.get("/settings", settingsController.get);
 router.put("/settings", settingsController.update);

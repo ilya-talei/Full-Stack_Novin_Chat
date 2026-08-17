@@ -6,7 +6,7 @@ import Spinner from '@components/ui/Spinner';
 import { contactsService } from '@services/contactsService';
 import { useDebounce } from '@hooks/useDebounce';
 
-export default function NewChatModal({ isOpen, onClose, onSelectContact }) {
+export default function NewChatModal({ isOpen, onClose, onSelectContact, placement = 'center' }) {
   const [search, setSearch] = useState('');
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ export default function NewChatModal({ isOpen, onClose, onSelectContact }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="گفتگوی جدید" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="گفتگوی جدید" size="md" placement={placement}>
       <div className="space-y-4">
         <Input
           placeholder="جستجوی مخاطب..."

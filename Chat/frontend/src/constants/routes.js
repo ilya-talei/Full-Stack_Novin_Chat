@@ -24,6 +24,8 @@ export const ROUTES = {
   SETTINGS_HELP: '/accountPage/help',
   SETTINGS_PREMIUM: '/accountPage/premium',
   SETTINGS_BUSINESS: '/accountPage/business',
+  SETTINGS_MANAGED_CHATS: '/accountPage/managed-chats',
+  SETTINGS_MANAGED_CHAT: '/accountPage/managed-chats/:chatId',
 };
 
 export const PUBLIC_ROUTES = [ROUTES.LOGIN];

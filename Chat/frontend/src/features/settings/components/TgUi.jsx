@@ -89,7 +89,7 @@ export function TgToggle({ checked, onChange, disabled = false }) {
 
 export function TgNavHeader({ title, onBack, right }) {
   return (
-    <div className="sticky top-0 z-30 bg-[rgb(var(--surface-panel))]/92 backdrop-blur-xl border-b border-hairline/[0.08]">
+    <div className="sticky top-0 z-30 bg-[rgb(var(--surface-panel))]/96 backdrop-blur-md border-b border-hairline/[0.06]">
       <div className="h-[52px] px-2 flex items-center gap-1">
         {onBack ? (
           <button

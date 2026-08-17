@@ -46,6 +46,9 @@ function mapConversation(chat) {
     description: chat.description || '',
     memberCount: chat.memberCount,
     subscriberCount: chat.subscriberCount,
+    role: chat.role || (chat.type === 'private' ? 'member' : 'member'),
+    permissions: chat.permissions && typeof chat.permissions === 'object' ? chat.permissions : {},
+    canManage: Boolean(chat.canManage),
     peerUserId: chat.peer_user_id ? String(chat.peer_user_id) : undefined,
     lastSeenAt:
       chat.last_seen_at ||

@@ -107,7 +107,9 @@ function chatReducer(state, action) {
         ...state,
         typingUsers: {
           ...state.typingUsers,
-          [action.payload.chatId]: action.payload.isTyping,
+          [action.payload.chatId]: action.payload.isTyping
+            ? action.payload.activity || 'typing'
+            : false,
         },
       };
     case 'SET_ONLINE': {
@@ -455,7 +457,11 @@ export function ChatProvider({ children }) {
     const onTyping = (data) => {
       dispatch({
         type: CHAT_ACTIONS.SET_TYPING,
-        payload: { chatId: String(data.chat_id), isTyping: true },
+        payload: {
+          chatId: String(data.chat_id),
+          isTyping: true,
+          activity: data.activity || 'typing',
+        },
       });
     };
 

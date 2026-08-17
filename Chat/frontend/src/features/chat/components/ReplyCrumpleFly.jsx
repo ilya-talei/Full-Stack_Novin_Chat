@@ -225,7 +225,7 @@ export default function ReplyCrumpleFly({ from, to: toProp, text, author, isMe =
       />
       <div
         ref={ref}
-        className="reply-fly fixed top-0 left-0 z-[90] pointer-events-none overflow-hidden border border-hairline/10 shadow-lg"
+        className="reply-fly fixed top-0 left-0 z-[90] pointer-events-none overflow-hidden border border-hairline/[0.08]"
         style={{
           width: from.width,
           height: Math.min(Math.max(from.height, 40), 96),

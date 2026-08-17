@@ -88,10 +88,13 @@ export const socketService = {
     else current.once('connect', emitJoin);
   },
 
-  emitTyping(chatId, isTyping) {
+  emitTyping(chatId, isTyping, activity = 'typing') {
     const current = this.connect();
     if (!current?.connected) return;
-    current.emit(isTyping ? 'typing' : 'stop_typing', { chat_id: Number(chatId) });
+    current.emit(isTyping ? 'typing' : 'stop_typing', {
+      chat_id: Number(chatId),
+      ...(isTyping ? { activity } : {}),
+    });
   },
 
   markRead(chatId, messageId) {
@@ -108,8 +111,11 @@ export const socketService = {
 
   sendCallEvent(eventName, payload) {
     const current = this.connect();
-    if (!current?.connected) return;
-    current.emit(eventName, payload);
+    if (!current) return false;
+    const emit = () => current.emit(eventName, payload);
+    if (current.connected) emit();
+    else current.once('connect', emit);
+    return true;
   },
 
   async sendTextMessage(chatId, text) {

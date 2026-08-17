@@ -3,7 +3,7 @@ import Modal from '@components/ui/Modal';
 import Input from '@components/ui/Input';
 import Button from '@components/ui/Button';
 
-export default function CreateChannelModal({ isOpen, onClose, onSubmit, loading }) {
+export default function CreateChannelModal({ isOpen, onClose, onSubmit, loading, placement = 'center' }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
@@ -24,7 +24,7 @@ export default function CreateChannelModal({ isOpen, onClose, onSubmit, loading 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="ایجاد کانال جدید" size="md">
+    <Modal isOpen={isOpen} onClose={handleClose} title="ایجاد کانال جدید" size="md" placement={placement}>
       <div className="space-y-4">
         <Input
           label="نام کانال"

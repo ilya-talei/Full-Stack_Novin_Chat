@@ -1,10 +1,6 @@
 import { FiBell, FiHome, FiPhone, FiSettings, FiUser } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@constants/routes';
-import LiquidGlass from '@components/ui/LiquidGlass';
-import { useTheme } from '@context/ThemeContext';
-import { usePerformance } from '@context/PerformanceContext';
-import { CHAT_INPUT_GLASS, chatGlassOverlay } from '@constants/glass';
 
 function FooterNav({ items, currentPath, onNavigate }) {
   return (
@@ -22,8 +18,9 @@ function FooterNav({ items, currentPath, onNavigate }) {
               key={item.path}
               type="button"
               onClick={() => onNavigate(item.path)}
-              className={`footer-nav-item relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-200 ${isActive ? 'text-ink' : 'text-ink-muted hover:text-ink-secondary'
-                }`}
+              className={`footer-nav-item relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-200 ${
+                isActive ? 'text-ink' : 'text-ink-muted hover:text-ink-secondary'
+              }`}
               aria-current={isActive ? 'page' : undefined}
             >
               <Icon
@@ -32,16 +29,16 @@ function FooterNav({ items, currentPath, onNavigate }) {
                 className="transition-[stroke-width] duration-200"
               />
               <span
-                className={`text-[10px] tracking-wide ${isActive ? 'font-medium text-ink' : 'font-normal'
-                  }`}
+                className={`text-[10px] tracking-wide ${
+                  isActive ? 'font-medium text-ink' : 'font-normal'
+                }`}
               >
                 {item.label}
               </span>
               <span
-                className={`absolute bottom-1.5 h-[2px] rounded-full transition-all duration-200 ${isActive
-                    ? 'w-4 bg-npurple-borders/80'
-                    : 'w-0 bg-transparent'
-                  }`}
+                className={`absolute bottom-1.5 h-[2px] rounded-full transition-all duration-200 ${
+                  isActive ? 'w-4 bg-npurple-borders/80' : 'w-0 bg-transparent'
+                }`}
                 aria-hidden
               />
             </button>
@@ -56,8 +53,6 @@ function Footer() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
-  const { isDark } = useTheme();
-  const { liquidGlassEnabled } = usePerformance();
 
   const menuItems = [
     { icon: FiHome, label: 'خانه', path: ROUTES.HOME },
@@ -67,26 +62,8 @@ function Footer() {
     { icon: FiSettings, label: 'تنظیمات', path: ROUTES.ACCOUNT },
   ];
 
-  if (liquidGlassEnabled) {
-    return (
-      <LiquidGlass
-        fill
-        className="rounded-[2rem] shadow-[0_8px_28px_rgba(0,0,0,0.22)] max-w-[340px] mx-auto w-full"
-        contentClassName="items-stretch"
-        {...CHAT_INPUT_GLASS}
-        overlay={chatGlassOverlay(isDark)}
-      >
-        <FooterNav
-          items={menuItems}
-          currentPath={currentPath}
-          onNavigate={(path) => navigate(path)}
-        />
-      </LiquidGlass>
-    );
-  }
-
   return (
-    <div className="relative overflow-hidden rounded-[1.75rem] border border-hairline/10 bg-[rgb(var(--surface-panel))] shadow-[0_8px_28px_rgba(0,0,0,0.22)] max-w-[320px] mx-auto w-full">
+    <div className="relative overflow-hidden rounded-[1.25rem] bg-[rgb(var(--surface-panel))] w-full">
       <FooterNav
         items={menuItems}
         currentPath={currentPath}

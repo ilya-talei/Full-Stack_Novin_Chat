@@ -197,14 +197,14 @@ export default function NotificationsPage() {
     <div className="pb-28 px-3 sm:px-4 flex flex-col min-h-0 h-full">
       <div className="shrink-0 mt-3 mb-4">
         <LiquidGlass
-          className="rounded-[1.35rem] shadow-lg shadow-black/10"
+          className="rounded-2xl"
           contentClassName="items-center justify-between gap-3"
           {...CHAT_INPUT_GLASS}
           overlay={chatGlassOverlay(isDark)}
         >
           <div className="flex items-center justify-between w-full px-4 py-3.5 gap-2">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-npurple-borders/30 to-nsecondary-100/25 border border-white/10 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-surface-muted border border-hairline/[0.08] flex items-center justify-center shrink-0">
                 <FiBell className="text-npurple-borders text-lg" />
               </div>
               <div className="min-w-0">
@@ -225,7 +225,7 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={() => setDeleteStep(1)}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-nerror bg-nerror/10 hover:bg-nerror/15 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-nerror bg-nerror/10 hover:bg-nerror/15 transition-colors"
                 >
                   <FiTrash2 size={14} />
                   حذف همه
@@ -235,7 +235,7 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={markAllRead}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-npurple-borders bg-npurple-borders/10 hover:bg-npurple-borders/15 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-npurple-borders bg-npurple-borders/10 hover:bg-npurple-borders/15 transition-colors"
                 >
                   <FiCheck size={14} />
                   خواندن همه
@@ -249,8 +249,8 @@ export default function NotificationsPage() {
       {items.length === 0 ? (
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="text-center max-w-xs">
-            <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-npurple-borders/20 to-nsecondary-100/15 border border-hairline/10 flex items-center justify-center">
-              <FiBell className="text-ink-muted text-2xl" />
+            <div className="mx-auto mb-4 w-14 h-14 rounded-xl bg-surface-muted border border-hairline/[0.08] flex items-center justify-center">
+              <FiBell className="text-ink-muted text-xl" />
             </div>
             <p className="text-ink font-medium">اعلانی وجود ندارد</p>
             <p className="text-ink-muted text-sm mt-2 leading-6">
@@ -284,28 +284,28 @@ export default function NotificationsPage() {
                 <div className="flex items-center gap-3">
                   <div className="relative shrink-0">
                     <div
-                      className={`rounded-2xl p-[2px] bg-gradient-to-br ${
+                      className={`rounded-xl ${
                         !item.read
-                          ? 'from-npurple-borders to-nsecondary-100'
-                          : 'from-hairline/20 to-hairline/10'
+                          ? 'ring-1 ring-npurple-borders/40'
+                          : 'ring-1 ring-hairline/[0.08]'
                       }`}
                     >
                       {isMessage ? (
                         <img
                           src={avatarUrl(item.senderName)}
                           alt=""
-                          className="w-12 h-12 rounded-[14px] object-cover bg-surface-muted"
+                          className="w-11 h-11 rounded-xl object-cover bg-surface-muted"
                         />
                       ) : (
                         <div
-                          className={`w-12 h-12 rounded-[14px] bg-gradient-to-br ${meta.tint} flex items-center justify-center`}
+                          className={`w-11 h-11 rounded-xl bg-surface-muted flex items-center justify-center`}
                         >
-                          <Icon className="text-ink-secondary text-xl" />
+                          <Icon className="text-ink-secondary text-lg" />
                         </div>
                       )}
                     </div>
                     {isMessage && item.count > 0 && (
-                      <span className="absolute -bottom-0.5 -left-0.5 min-w-[20px] h-5 px-1 rounded-full bg-npurple-borders text-white text-[10px] font-bold flex items-center justify-center shadow-md shadow-npurple-borders/30">
+                      <span className="absolute -bottom-0.5 -left-0.5 min-w-[20px] h-5 px-1 rounded-full bg-npurple-borders text-white text-[10px] font-bold flex items-center justify-center">
                         {item.count > 99 ? '۹۹+' : item.count.toLocaleString('fa-IR')}
                       </span>
                     )}

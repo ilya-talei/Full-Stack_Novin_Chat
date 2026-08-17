@@ -62,11 +62,11 @@ export default function ChatActionMenu({ onNewChat, onNewGroup, onNewChannel }) 
   const menu = (
     <div
       ref={menuRef}
-      className="pointer-events-auto absolute bottom-[92px] right-4 z-50 flex flex-col items-end gap-3"
+      className="pointer-events-auto absolute bottom-[100px] left-8 z-[55] flex flex-col items-start gap-3"
     >
       {open && (
         <LiquidGlass
-          className="w-[220px] rounded-[1.35rem] animate-menu-up shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+          className="w-[220px] rounded-2xl animate-menu-up border border-hairline/[0.08]"
           contentClassName="flex-col items-stretch"
           {...CHAT_INPUT_GLASS}
           overlay={chatGlassOverlay(isDark)}
@@ -102,10 +102,10 @@ export default function ChatActionMenu({ onNewChat, onNewGroup, onNewChannel }) 
           aria-label="منوی ایجاد"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 ${
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors duration-200 ${
             open
               ? 'bg-transparent rotate-45 text-ink'
-              : 'bg-npurple-borders hover:bg-[#4A97D6] text-white shadow-npurple-borders/35'
+              : 'bg-npurple-borders hover:bg-[#5A97C6] text-white'
           }`}
         >
           <FiPlus className="text-2xl" />

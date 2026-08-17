@@ -138,7 +138,7 @@ export function VoicePlayer({ src, duration = 0, isMe = false }) {
   );
 }
 
-export function VideoPlayer({ src, duration = 0 }) {
+export function VideoPlayer({ src, duration = 0, onOpen }) {
   const videoRef = useRef(null);
   const seekRef = useRef(null);
   const dragging = useRef(false);
@@ -231,7 +231,17 @@ export function VideoPlayer({ src, duration = 0 }) {
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="nv-video__frame" onClick={toggle}>
+      <div
+        className={`nv-video__frame ${onOpen ? 'cursor-zoom-in' : ''}`}
+        onClick={(event) => {
+          if (onOpen) {
+            event.stopPropagation();
+            onOpen();
+          } else {
+            toggle(event);
+          }
+        }}
+      >
         <video
           ref={videoRef}
           src={src}

@@ -31,7 +31,7 @@ export function ToastProvider({ children }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`px-4 py-3 rounded-xl border shadow-lg text-sm text-white animate-slide-in ${typeStyles[toast.type]}`}
+            className={`px-4 py-2.5 rounded-xl border border-white/10 text-sm text-white animate-slide-in ${typeStyles[toast.type]}`}
             onClick={() => removeToast(toast.id)}
           >
             {toast.message}

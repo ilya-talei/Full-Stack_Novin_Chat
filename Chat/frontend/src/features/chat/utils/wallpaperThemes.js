@@ -5,9 +5,9 @@ export const WALLPAPER_THEMES = [
     title: 'پیش‌فرض',
     pattern: '/chat-pattern.svg',
     tile: '300px',
-    base: { dark: '#16191e', light: '#e9ecf1' },
+    base: { dark: '#16191e', light: '#ece6da' },
     tint: { dark: null, light: null },
-    opacity: { dark: 0.18, light: 0.32 },
+    opacity: { dark: 0.18, light: 0.3 },
   },
   {
     id: 'soft',

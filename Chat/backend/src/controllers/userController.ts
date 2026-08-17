@@ -117,13 +117,36 @@ class UserController {
             }
 
             const fileType = await fileTypeFromBuffer(file.buffer);
-            if (!fileType || !["image/png", "image/jpeg"].includes(fileType.mime)) {
-                throw new AppError("فرمت های مجاز برای تصویر png و jpeg هستند", 400);
+            if (!fileType || !["image/png", "image/jpeg", "image/webp"].includes(fileType.mime)) {
+                throw new AppError("فرمت های مجاز برای تصویر png و jpeg و webp هستند", 400);
             }
 
-            const fileName = await req.tenant!.services.UserService.uploadAvatar(file, req.userId!);
-            res.status(200).json({ avatar_file_name: fileName });
+            const fileName = await req.tenant!.services.UserService.uploadAvatar(
+                file,
+                req.userId!,
+                req.tenant!.data.id,
+            );
+            const profile = await req.tenant!.services.UserService.getProfile(req.userId!);
+            res.status(200).json({
+                avatar_file_name: fileName,
+                avatar: profile.avatar,
+            });
         } catch (error: unknown) {
+            next(error);
+        }
+    };
+
+    getAvatar = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const fileName = decodeURIComponent(String(req.params.fileName || ""));
+            const { stream, contentType } = await req.tenant!.services.UserService.getAvatarStream(
+                fileName,
+                req.tenant!.data.id,
+            );
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Cache-Control", "private, max-age=86400");
+            stream.pipe(res);
+        } catch (error) {
             next(error);
         }
     };

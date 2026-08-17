@@ -18,17 +18,20 @@ import {
 } from 'react-icons/fi';
 import { useChat } from '@context/ChatContext';
 import { useCall } from '@context/CallContext';
-import { useTheme } from '@context/ThemeContext';
-import { usePerformance } from '@context/PerformanceContext';
-import LiquidGlass from '@components/ui/LiquidGlass';
-import { CHAT_INPUT_GLASS, chatGlassOverlay } from '@constants/glass';
 import { profileService } from '@services/notificationService';
 import { formatLastSeenStatus } from '@utils/formatDate';
 import { getSearchableText } from '../utils/messageMeta';
 
-function getSubtitle(conversation, typing, nowTs) {
+function getTypingLabel(activity) {
+  if (activity === 'choosing_emoji') return 'در حال انتخاب ایموجی...';
+  if (activity === 'choosing_sticker') return 'در حال انتخاب استیکر...';
+  if (activity === 'choosing_gif') return 'در حال انتخاب GIF...';
+  return 'در حال نوشتن...';
+}
+
+function getSubtitle(conversation, typingActivity, nowTs) {
   if (!conversation) return 'در حال اتصال...';
-  if (typing) return 'در حال نوشتن...';
+  if (typingActivity) return getTypingLabel(typingActivity);
 
   if (conversation.type === 'groups') {
     return `${conversation.memberCount ?? 0} عضو`;
@@ -267,7 +270,7 @@ function IslandBody({
                 <i />
                 <i />
               </span>
-              <span>در حال نوشتن پیام...</span>
+              <span>{subtitle}</span>
             </div>
           ) : mode === 'online' ? (
             <div className="pvi-activity is-online">
@@ -295,7 +298,7 @@ function IslandBody({
                 onCall?.();
               }}
               aria-label="تماس"
-              title="تماس"
+              title="تماس — دوربین را وسط تماس روشن کنید"
               tabIndex={isMenu ? 0 : -1}
             >
               <FiPhone size={15} />
@@ -508,8 +511,6 @@ export default function HeaderPv({
 }) {
   const { activeChat, typingUsers, messages, clearActiveChat } = useChat();
   const { callConversation, isInCall } = useCall();
-  const { isDark } = useTheme();
-  const { liquidGlassEnabled } = usePerformance();
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [view, setView] = useState('compact');
   const [profile, setProfile] = useState(null);
@@ -533,12 +534,14 @@ export default function HeaderPv({
     return () => clearInterval(id);
   }, []);
 
-  const typing = Boolean(activeChat?.id && typingUsers?.[activeChat.id]);
+  const typingActivity = activeChat?.id ? typingUsers?.[activeChat.id] || null : null;
+  const typing = Boolean(typingActivity);
   const mode = presenceMode(activeChat, typing);
   const subtitle = useMemo(
-    () => getSubtitle(activeChat, typing, nowTs),
-    [activeChat, typing, nowTs]
+    () => getSubtitle(activeChat, typingActivity, nowTs),
+    [activeChat, typingActivity, nowTs]
   );
+  const presenceKey = typingActivity || mode;
 
   const searchMatches = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -694,18 +697,18 @@ export default function HeaderPv({
 
   useEffect(() => {
     if (prevModeRef.current == null) {
-      prevModeRef.current = mode;
+      prevModeRef.current = presenceKey;
       return;
     }
-    if (prevModeRef.current === mode) return;
-    prevModeRef.current = mode;
+    if (prevModeRef.current === presenceKey) return;
+    prevModeRef.current = presenceKey;
     if (isSelecting || selectUi) return;
     if (view === 'search' || view === 'info') return;
     if ((mode === 'typing' || mode === 'online') && view === 'compact') {
       openIsland();
       closeTimerRef.current = window.setTimeout(() => closeIsland(), 1600);
     }
-  }, [mode, view, isSelecting, selectUi]);
+  }, [mode, presenceKey, view, isSelecting, selectUi]);
 
   useEffect(() => {
     // Keep search open while browsing results in the chat
@@ -731,7 +734,6 @@ export default function HeaderPv({
 
   const name = activeChat?.name || 'گفتگو';
   const avatar = activeChat?.avatar;
-  const useGlass = liquidGlassEnabled && !selectUi;
   const canCall =
     !isInCall &&
     activeChat &&
@@ -747,7 +749,6 @@ export default function HeaderPv({
     selectUi ? 'is-select' : `is-${mode}`,
     selectPhase === 'in' ? 'is-select-in' : '',
     selectPhase === 'out' ? 'is-select-out' : '',
-    useGlass ? 'pvi-island--glass' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -801,8 +802,11 @@ export default function HeaderPv({
   );
 
   return (
-    <header className="pvi-stage" ref={rootRef}>
-      {/* Back to list — always a solid control (LiquidGlass is too transparent to spot) */}
+    <header
+      className={`pvi-stage ${selectUi || view !== 'compact' ? 'pvi-stage--wide' : ''}`}
+      ref={rootRef}
+    >
+      {/* Back to list — solid frosted control */}
       <button
         type="button"
         className="pvi-back-btn"
@@ -816,30 +820,11 @@ export default function HeaderPv({
         <FiChevronLeft size={22} strokeWidth={2.5} aria-hidden />
       </button>
 
-      {useGlass ? (
-        <LiquidGlass
-          className={islandClass}
-          contentClassName="items-stretch h-full min-h-0"
-          {...CHAT_INPUT_GLASS}
-          depth={9}
-          strength={38}
-          blur={2.4}
-          chromaticAberration={0.2}
-          overlay={chatGlassOverlay(isDark)}
-        >
-          <div className="pvi-glass-fx" aria-hidden>
-            <div className="pvi-glow" />
-            <div className="pvi-specular" />
-          </div>
-          {body}
-        </LiquidGlass>
-      ) : (
-        <div className={islandClass}>
-          {!selectUi ? <div className="pvi-glow" aria-hidden /> : null}
-          {!selectUi ? <div className="pvi-specular" aria-hidden /> : null}
-          {body}
-        </div>
-      )}
+      <div className={islandClass}>
+        {!selectUi ? <div className="pvi-glow" aria-hidden /> : null}
+        {!selectUi ? <div className="pvi-specular" aria-hidden /> : null}
+        {body}
+      </div>
     </header>
   );
 }

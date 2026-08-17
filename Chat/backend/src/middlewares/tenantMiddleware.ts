@@ -14,6 +14,7 @@ import MinIOService from "../services/minIoService.js";
 import ContactService from "../services/contactService.js";
 import NotificationService from "../services/notificationService.js";
 import SettingsService from "../services/settingsService.js";
+import ChatManagementService from "../services/chatManagementService.js";
 import type * as minio from "minio";
 
 export interface Services {
@@ -26,6 +27,7 @@ export interface Services {
     ContactService: ContactService;
     NotificationService: NotificationService;
     SettingsService: SettingsService;
+    ChatManagementService: ChatManagementService;
 }
 
 type Enviroment = "production" | "development" | "test";
@@ -88,6 +90,7 @@ export class Tenant {
             ContactService: new ContactService(this.prisma),
             NotificationService: new NotificationService(this.prisma),
             SettingsService: new SettingsService(this.prisma),
+            ChatManagementService: new ChatManagementService(this.prisma),
         };
     }
 

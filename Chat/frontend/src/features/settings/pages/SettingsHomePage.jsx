@@ -14,12 +14,12 @@ import {
   FiSmile,
   FiStar,
   FiUser,
+  FiUsers,
 } from 'react-icons/fi';
 import Avatar from '@components/ui/Avatar';
 import { useAuth } from '@context/AuthContext';
 import { useSettings } from '@context/SettingsContext';
 import { useTheme } from '@context/ThemeContext';
-import { usePerformance } from '@context/PerformanceContext';
 import { profileService } from '@services/notificationService';
 import { settingsService } from '@services/settingsService';
 import { ROUTES } from '@constants/routes';
@@ -37,7 +37,6 @@ export default function SettingsHomePage() {
   const { user, logout } = useAuth();
   const { settings } = useSettings();
   const { isDark, setTheme } = useTheme();
-  const { liquidGlassEnabled, setLiquidGlassEnabled } = usePerformance();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionCount, setSessionCount] = useState(0);
@@ -97,7 +96,7 @@ export default function SettingsHomePage() {
 
   return (
     <div className="min-h-full pb-8 bg-[rgb(var(--surface-panel))]">
-      <div className="sticky top-0 z-30 bg-[rgb(var(--surface-panel))]/92 backdrop-blur-xl border-b border-hairline/[0.08]">
+      <div className="sticky top-0 z-30 bg-[rgb(var(--surface-panel))]/96 backdrop-blur-md border-b border-hairline/[0.06]">
         <div className="h-[52px] flex items-center justify-center">
           <h1 className="text-[17px] font-semibold text-ink">تنظیمات</h1>
         </div>
@@ -108,7 +107,7 @@ export default function SettingsHomePage() {
         onClick={() => navigate(ROUTES.SETTINGS_PROFILE)}
         className="w-full px-4 pt-4 pb-2 flex items-center gap-3.5 text-right hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
       >
-        <Avatar src={profile?.avatar} alt={name} size="lg" />
+        <Avatar src={profile?.avatar || user?.avatar} alt={name} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="text-[20px] font-semibold text-ink truncate">{name}</div>
           {username ? (
@@ -165,6 +164,12 @@ export default function SettingsHomePage() {
           onClick={() => navigate(ROUTES.SETTINGS_CHAT)}
         />
         <TgCell
+          icon={<TgIcon color="#5856D6"><FiUsers size={16} /></TgIcon>}
+          title="مدیریت گروه‌ها و کانال‌ها"
+          subtitle="اعضا، مدیران و مجوزها"
+          onClick={() => navigate(ROUTES.SETTINGS_MANAGED_CHATS)}
+        />
+        <TgCell
           icon={<TgIcon color="#FF2D55"><FiSmile size={16} /></TgIcon>}
           title="استیکر و ایموجی"
           onClick={() => navigate(ROUTES.SETTINGS_STICKERS)}
@@ -189,12 +194,6 @@ export default function SettingsHomePage() {
           title="حالت تاریک"
           chevron={false}
           right={<TgToggle checked={isDark} onChange={(on) => setTheme(on ? 'dark' : 'light')} />}
-        />
-        <TgCell
-          icon={<TgIcon color="#64D2FF"><FiStar size={16} /></TgIcon>}
-          title="شیشه مایع"
-          chevron={false}
-          right={<TgToggle checked={liquidGlassEnabled} onChange={setLiquidGlassEnabled} />}
           last
         />
       </TgSection>

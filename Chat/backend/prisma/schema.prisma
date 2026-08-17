@@ -18,7 +18,7 @@ model User {
   login_id        String    @unique @db.VarChar(32)
   display_name    String?   @db.VarChar(64)
   email           String?   @db.VarChar(128)
-  bio             String    @db.Text @default("")
+  bio             String    @default("") @db.Text
   hashed_password String    @db.Text
   last_login_at   DateTime  @default(now())
   active          Boolean   @default(true)
@@ -26,15 +26,15 @@ model User {
   updated_at      DateTime  @updatedAt
   deleted_at      DateTime?
 
-  sessions          Session[]
-  ownedChats        Chat[]
-  messages          Message[]
-  joinedChats       ChatMember[]
-  userAvatar        UserAvatar[]
-  contactsOwned     Contact[]      @relation("ContactOwner")
-  contactsLinked    Contact[]      @relation("ContactTarget")
-  notifications     Notification[]
-  settings          UserSettings?
+  sessions       Session[]
+  ownedChats     Chat[]
+  messages       Message[]
+  joinedChats    ChatMember[]
+  userAvatar     UserAvatar[]
+  contactsOwned  Contact[]      @relation("ContactOwner")
+  contactsLinked Contact[]      @relation("ContactTarget")
+  notifications  Notification[]
+  settings       UserSettings?
 
   @@map("users")
 }
@@ -67,17 +67,23 @@ model Session {
 }
 
 model Chat {
-  id                Int        @id @default(autoincrement())
-  type              String     @db.VarChar(32)
-  private_chat_key  String?    @db.VarChar(32) @unique
-  owner_id          Int?
-  chat_name         String?    @db.VarChar(255)
-  pinned_message_id Int?
-  description       String     @db.Text @default("")
-  avatar_file_name  String?    @db.Text
-  created_at        DateTime   @default(now())
-  updated_at        DateTime   @updatedAt
-  deleted_at        DateTime?
+  id                  Int       @id @default(autoincrement())
+  type                String    @db.VarChar(32)
+  private_chat_key    String?   @unique @db.VarChar(32)
+  owner_id            Int?
+  chat_name           String?   @db.VarChar(255)
+  pinned_message_id   Int?
+  description         String    @default("") @db.Text
+  avatar_file_name    String?   @db.Text
+  default_permissions Json      @default("{\"send_messages\":true,\"send_photos\":true,\"send_videos\":true,\"send_files\":true,\"send_voice\":true,\"send_video_messages\":true,\"send_stickers\":true,\"send_gifs\":true,\"send_links\":true,\"send_polls\":true,\"add_members\":true,\"change_info\":false,\"pin_messages\":false}")
+  slow_mode_seconds   Int       @default(0)
+  is_public           Boolean   @default(false)
+  public_username     String?   @unique @db.VarChar(64)
+  history_visible     Boolean   @default(true)
+  signatures_enabled  Boolean   @default(false)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  deleted_at          DateTime?
 
   owner    User?        @relation(fields: [owner_id], references: [id], onDelete: SetNull)
   messages Message[]
@@ -92,6 +98,11 @@ model ChatMember {
   chat_id              Int
   user_id              Int
   last_read_message_id Int?
+  role                 String    @default("member") @db.VarChar(16)
+  custom_title         String?   @db.VarChar(32)
+  admin_permissions    Json?
+  member_permissions   Json?
+  banned_until         DateTime?
   created_at           DateTime  @default(now())
   updated_at           DateTime  @updatedAt
   deleted_at           DateTime?
@@ -99,19 +110,19 @@ model ChatMember {
   chat Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([chat_id, user_id])
+  @@unique([chat_id, user_id])
   @@map("chat_members")
 }
 
 model Message {
-  id           Int        @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   chat_id      Int
   sender_id    Int
-  message_type String     @db.VarChar(32)
-  message_uuid String     @db.VarChar(36) @unique
+  message_type String    @db.VarChar(32)
+  message_uuid String    @unique @db.VarChar(36)
   message_data Json
-  created_at   DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
   deleted_at   DateTime?
 
   chat   Chat @relation(fields: [chat_id], references: [id], onDelete: Cascade)

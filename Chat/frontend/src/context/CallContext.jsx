@@ -9,12 +9,13 @@ import {
 } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { useChat } from '@context/ChatContext';
+import { useToast } from '@components/ui/Toast';
 import { socketService } from '@services/socketService';
 import {
   createPeerConnection,
   getCallMedia,
+  getCameraTrack,
   setStreamMuted,
-  setStreamVideoEnabled,
   stopStream,
 } from '@services/webrtcCall';
 import { encodeCallMessage } from '@features/chat/utils/messageMeta';
@@ -34,14 +35,50 @@ function displayNameOf(user) {
   return user?.display_name || user?.displayName || user?.name || user?.login_id || user?.username || 'کاربر';
 }
 
+function mergeRemoteTrack(remoteRef, setRemoteStream, ev) {
+  let stream = remoteRef.current;
+  if (!stream) {
+    stream = new MediaStream();
+    remoteRef.current = stream;
+  }
+
+  const incoming = [];
+  if (ev.streams?.[0]) {
+    ev.streams[0].getTracks().forEach((t) => incoming.push(t));
+  } else if (ev.track) {
+    incoming.push(ev.track);
+  }
+
+  let changed = false;
+  for (const track of incoming) {
+    if (!stream.getTracks().some((t) => t.id === track.id)) {
+      stream.addTrack(track);
+      changed = true;
+      track.addEventListener('ended', () => {
+        try {
+          stream.removeTrack(track);
+        } catch {
+          /* ignore */
+        }
+        setRemoteStream(new MediaStream(stream.getTracks()));
+      });
+    }
+  }
+
+  if (changed || !remoteRef.current) {
+    setRemoteStream(new MediaStream(stream.getTracks()));
+  }
+}
+
 export function CallProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const { conversations, selectChat, startChatWithContact, sendMessageToChat } = useChat();
+  const { addToast } = useToast();
 
   const [status, setStatus] = useState(CALL_STATES.IDLE);
-  const [peer, setPeer] = useState(null); // { userId, chatId, name, avatar, video, isGroup }
+  const [peer, setPeer] = useState(null);
   const [muted, setMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
+  const [videoOff, setVideoOff] = useState(true);
   const [duration, setDuration] = useState(0);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -56,6 +93,7 @@ export function CallProvider({ children }) {
   const ringTimerRef = useRef(null);
   const makingOfferRef = useRef(false);
   const pendingIceRef = useRef([]);
+  const conversationsRef = useRef(conversations);
 
   useEffect(() => {
     statusRef.current = status;
@@ -64,6 +102,10 @@ export function CallProvider({ children }) {
   useEffect(() => {
     peerRef.current = peer;
   }, [peer]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   const clearRingTimer = () => {
     if (ringTimerRef.current) {
@@ -93,10 +135,11 @@ export function CallProvider({ children }) {
   const resetCall = useCallback(() => {
     cleanupMedia();
     answeredRef.current = false;
+    statusRef.current = CALL_STATES.IDLE;
     setStatus(CALL_STATES.IDLE);
     setPeer(null);
     setMuted(false);
-    setVideoOff(false);
+    setVideoOff(true);
     setDuration(0);
     setError(null);
   }, [cleanupMedia]);
@@ -131,14 +174,13 @@ export function CallProvider({ children }) {
           payload: { candidate },
         });
       },
-      onTrack: (ev) => {
-        const stream = ev.streams?.[0] || new MediaStream([ev.track]);
-        remoteRef.current = stream;
-        setRemoteStream(stream);
-      },
+      onTrack: (ev) => mergeRemoteTrack(remoteRef, setRemoteStream, ev),
       onConnectionState: (state) => {
-        if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+        // "disconnected" is commonly transient on mobile network changes.
+        // Normal closure is handled by call_end/resetCall.
+        if (state === 'failed') {
           if (statusRef.current === CALL_STATES.CONNECTED) {
+            addToast('اتصال تماس قطع شد', 'error');
             resetCall();
           }
         }
@@ -146,16 +188,22 @@ export function CallProvider({ children }) {
     });
     pcRef.current = pc;
     return pc;
-  }, [resetCall]);
+  }, [addToast, resetCall]);
 
-  const attachLocal = useCallback(async (wantVideo) => {
-    const stream = await getCallMedia({ video: wantVideo });
-    localRef.current = stream;
-    setLocalStream(stream);
-    const pc = ensurePc();
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-    return stream;
-  }, [ensurePc]);
+  const attachLocal = useCallback(
+    async (wantVideo) => {
+      const stream = await getCallMedia({ video: wantVideo });
+      localRef.current = stream;
+      setLocalStream(stream);
+      const pc = ensurePc();
+      stream.getTracks().forEach((track) => {
+        const already = pc.getSenders().some((s) => s.track?.id === track.id);
+        if (!already) pc.addTrack(track, stream);
+      });
+      return stream;
+    },
+    [ensurePc]
+  );
 
   const flushIce = useCallback(async () => {
     const pc = pcRef.current;
@@ -169,6 +217,30 @@ export function CallProvider({ children }) {
       }
     }
   }, []);
+
+  const sendRenegotiateOffer = useCallback(async () => {
+    const p = peerRef.current;
+    const pc = pcRef.current;
+    if (!pc || !p?.userId) return;
+    makingOfferRef.current = true;
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socketService.sendCallEvent('call_offer', {
+        toUserId: Number(p.userId),
+        chat_id: p.chatId ? Number(p.chatId) : undefined,
+        payload: {
+          sdp: offer,
+          video: true,
+          renegotiate: true,
+          callerName: displayNameOf(user),
+          chatId: p.chatId ? Number(p.chatId) : undefined,
+        },
+      });
+    } finally {
+      makingOfferRef.current = false;
+    }
+  }, [user]);
 
   const startCall = useCallback(
     async ({ userId, chatId, name, avatar, video = false, isGroup = false }) => {
@@ -189,17 +261,21 @@ export function CallProvider({ children }) {
         chatId: chatId ? String(chatId) : null,
         name: name || 'مخاطب',
         avatar: avatar || '',
-        video: Boolean(video),
+        // Unified call: always camera-capable; video flag = start with camera on
+        video: true,
+        cameraPreferred: Boolean(video),
         isGroup: Boolean(isGroup),
         direction: 'out',
       };
       setPeer(nextPeer);
       peerRef.current = nextPeer;
       setVideoOff(!video);
+      statusRef.current = CALL_STATES.OUTGOING;
       setStatus(CALL_STATES.OUTGOING);
 
       try {
-        await attachLocal(Boolean(video));
+        const stream = await attachLocal(Boolean(video));
+        setVideoOff(stream.getVideoTracks().length === 0);
         makingOfferRef.current = true;
         const pc = ensurePc();
         const offer = await pc.createOffer();
@@ -233,11 +309,13 @@ export function CallProvider({ children }) {
           resetCall();
         }, RING_TIMEOUT_MS);
       } catch (err) {
-        setError(err?.message || 'دسترسی به میکروفون/دوربین لازم است');
+        const message = err?.message || 'دسترسی به میکروفون/دوربین لازم است';
+        setError(message);
+        addToast(message, 'error');
         resetCall();
       }
     },
-    [attachLocal, ensurePc, user, postMissedCall, resetCall]
+    [attachLocal, ensurePc, user, postMissedCall, resetCall, addToast]
   );
 
   const acceptCall = useCallback(async () => {
@@ -249,7 +327,9 @@ export function CallProvider({ children }) {
     try {
       const offer = p.remoteOffer;
       if (!offer) throw new Error('پیشنهاد تماس نامعتبر است');
-      await attachLocal(Boolean(p.video));
+      const wantVideo = Boolean(p.cameraPreferred);
+      const stream = await attachLocal(wantVideo);
+      setVideoOff(stream.getVideoTracks().length === 0);
       const pc = ensurePc();
       await pc.setRemoteDescription(offer);
       await flushIce();
@@ -260,9 +340,12 @@ export function CallProvider({ children }) {
         chat_id: p.chatId ? Number(p.chatId) : undefined,
         payload: { sdp: answer },
       });
+      statusRef.current = CALL_STATES.CONNECTED;
       setStatus(CALL_STATES.CONNECTED);
     } catch (err) {
-      setError(err?.message || 'پذیرش تماس ناموفق بود');
+      const message = err?.message || 'پذیرش تماس ناموفق بود';
+      setError(message);
+      addToast(message, 'error');
       socketService.sendCallEvent('call_end', {
         toUserId: Number(p.userId),
         chat_id: p.chatId ? Number(p.chatId) : undefined,
@@ -270,7 +353,7 @@ export function CallProvider({ children }) {
       });
       resetCall();
     }
-  }, [attachLocal, ensurePc, flushIce, resetCall]);
+  }, [attachLocal, ensurePc, flushIce, resetCall, addToast]);
 
   const rejectCall = useCallback(() => {
     const p = peerRef.current;
@@ -312,13 +395,61 @@ export function CallProvider({ children }) {
     });
   }, []);
 
-  const toggleVideo = useCallback(() => {
-    setVideoOff((v) => {
-      const next = !v;
-      setStreamVideoEnabled(localRef.current, !next);
-      return next;
-    });
-  }, []);
+  const toggleVideo = useCallback(async () => {
+    const stream = localRef.current;
+    const existing = stream?.getVideoTracks?.()?.[0];
+
+    // Turn camera off
+    if (existing?.enabled) {
+      existing.enabled = false;
+      setVideoOff(true);
+      return;
+    }
+
+    // Re-enable existing track
+    if (existing) {
+      existing.enabled = true;
+      setVideoOff(false);
+      setPeer((prev) => (prev ? { ...prev, video: true, cameraPreferred: true } : prev));
+      if (peerRef.current) {
+        peerRef.current = { ...peerRef.current, video: true, cameraPreferred: true };
+      }
+      return;
+    }
+
+    // Mid-call upgrade: add camera track + renegotiate
+    try {
+      setError(null);
+      const track = await getCameraTrack();
+      if (!track) throw new Error('دوربین در دسترس نیست');
+
+      const pc = ensurePc();
+      let local = localRef.current;
+      if (!local) {
+        local = new MediaStream();
+        localRef.current = local;
+      }
+      local.addTrack(track);
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(track);
+      } else {
+        pc.addTrack(track, local);
+      }
+      setLocalStream(new MediaStream(local.getTracks()));
+      setVideoOff(false);
+      setPeer((prev) => (prev ? { ...prev, video: true, cameraPreferred: true } : prev));
+      if (peerRef.current) {
+        peerRef.current = { ...peerRef.current, video: true, cameraPreferred: true };
+      }
+
+      if (statusRef.current === CALL_STATES.CONNECTED) {
+        await sendRenegotiateOffer();
+      }
+    } catch (err) {
+      setError(err?.message || 'فعال‌سازی دوربین ناموفق بود');
+    }
+  }, [ensurePc, sendRenegotiateOffer]);
 
   const callContact = useCallback(
     async (contact, { video = false } = {}) => {
@@ -365,22 +496,42 @@ export function CallProvider({ children }) {
     [selectChat, startCall]
   );
 
-  // Duration ticker
   useEffect(() => {
     if (status !== CALL_STATES.CONNECTED) return undefined;
     const t = setInterval(() => setDuration((d) => d + 1), 1000);
     return () => clearInterval(t);
   }, [status]);
 
-  // Socket listeners
   useEffect(() => {
     if (!isAuthenticated) return undefined;
     const socket = socketService.connect();
     if (!socket) return undefined;
 
     const onOffer = async (packet) => {
+      const payload = packet?.payload || {};
+      const sdp = payload.sdp;
+      if (!sdp) return;
+
+      // Mid-call renegotiation (camera upgrade)
+      if (payload.renegotiate && statusRef.current === CALL_STATES.CONNECTED && pcRef.current) {
+        try {
+          await pcRef.current.setRemoteDescription(sdp);
+          await flushIce();
+          const answer = await pcRef.current.createAnswer();
+          await pcRef.current.setLocalDescription(answer);
+          socketService.sendCallEvent('call_answer', {
+            toUserId: Number(packet.fromUserId),
+            chat_id: packet.chat_id || payload.chatId,
+            payload: { sdp: answer, renegotiate: true },
+          });
+          setPeer((prev) => (prev ? { ...prev, video: true } : prev));
+        } catch {
+          /* ignore renegotiate errors */
+        }
+        return;
+      }
+
       if (statusRef.current !== CALL_STATES.IDLE) {
-        // busy — reject politely
         if (packet?.fromUserId) {
           socketService.sendCallEvent('call_end', {
             toUserId: Number(packet.fromUserId),
@@ -390,18 +541,16 @@ export function CallProvider({ children }) {
         }
         return;
       }
-      const payload = packet?.payload || {};
-      const sdp = payload.sdp;
-      if (!sdp) return;
 
       const chatId = packet.chat_id || payload.chatId;
-      const conv = conversations?.find((c) => String(c.id) === String(chatId));
+      const conv = conversationsRef.current?.find((c) => String(c.id) === String(chatId));
       const nextPeer = {
         userId: String(packet.fromUserId),
         chatId: chatId ? String(chatId) : null,
         name: payload.callerName || conv?.name || `کاربر ${packet.fromUserId}`,
         avatar: conv?.avatar || '',
-        video: Boolean(payload.video),
+        video: true,
+        cameraPreferred: Boolean(payload.video),
         isGroup: Boolean(payload.isGroup),
         direction: 'in',
         remoteOffer: sdp,
@@ -409,6 +558,7 @@ export function CallProvider({ children }) {
       setPeer(nextPeer);
       peerRef.current = nextPeer;
       setVideoOff(!payload.video);
+      statusRef.current = CALL_STATES.INCOMING;
       setStatus(CALL_STATES.INCOMING);
       answeredRef.current = false;
 
@@ -425,28 +575,49 @@ export function CallProvider({ children }) {
     };
 
     const onAnswer = async (packet) => {
-      if (statusRef.current !== CALL_STATES.OUTGOING) return;
       const sdp = packet?.payload?.sdp;
       if (!sdp || !pcRef.current) return;
+
+      // Renegotiation (camera upgrade) while already in a call
+      if (
+        statusRef.current === CALL_STATES.CONNECTED ||
+        packet?.payload?.renegotiate
+      ) {
+        try {
+          await pcRef.current.setRemoteDescription(sdp);
+          await flushIce();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      if (statusRef.current !== CALL_STATES.OUTGOING) return;
       answeredRef.current = true;
       clearRingTimer();
       try {
-        // If group, lock onto the answerer
+        const wasGroup = Boolean(peerRef.current?.isGroup);
+        const chatId = peerRef.current?.chatId;
         if (packet.fromUserId) {
-          setPeer((prev) =>
-            prev
-              ? { ...prev, userId: String(packet.fromUserId), isGroup: false }
-              : prev
-          );
-          peerRef.current = {
+          const nextPeer = {
             ...peerRef.current,
             userId: String(packet.fromUserId),
             isGroup: false,
           };
+          peerRef.current = nextPeer;
+          setPeer(nextPeer);
         }
         await pcRef.current.setRemoteDescription(sdp);
         await flushIce();
+        statusRef.current = CALL_STATES.CONNECTED;
         setStatus(CALL_STATES.CONNECTED);
+        if (wasGroup && chatId) {
+          socketService.sendCallEvent('call_end', {
+            chat_id: Number(chatId),
+            broadcast: true,
+            payload: { reason: 'taken', takenBy: packet.fromUserId },
+          });
+        }
       } catch {
         resetCall();
       }
@@ -455,9 +626,18 @@ export function CallProvider({ children }) {
     const onIce = async (packet) => {
       const candidate = packet?.payload?.candidate;
       if (!candidate) return;
+      const activePeerId = peerRef.current?.userId;
+      if (
+        activePeerId &&
+        packet?.fromUserId &&
+        String(packet.fromUserId) !== String(activePeerId)
+      ) {
+        return;
+      }
       const pc = pcRef.current;
-      if (!pc) return;
-      if (!pc.remoteDescription) {
+      // Trickle ICE often arrives while the incoming notification is still
+      // waiting for an answer and before a peer connection exists.
+      if (!pc || !pc.remoteDescription) {
         pendingIceRef.current.push(candidate);
         return;
       }
@@ -471,8 +651,25 @@ export function CallProvider({ children }) {
     const onEnd = async (packet) => {
       const reason = packet?.payload?.reason;
       const p = peerRef.current;
+      const fromId = packet?.fromUserId != null ? String(packet.fromUserId) : null;
+
+      // Another member answered a group ring; stay connected if we are the one.
+      if (reason === 'taken') {
+        if (statusRef.current === CALL_STATES.CONNECTED) return;
+        resetCall();
+        return;
+      }
+
+      if (p?.userId && fromId && fromId !== String(p.userId)) return;
+
       const wasOutRing = statusRef.current === CALL_STATES.OUTGOING && !answeredRef.current;
-      // Caller side already posts missed on hangup/timeout; if callee rejected while we ring, also post
+      if (
+        wasOutRing &&
+        p?.isGroup &&
+        (reason === 'rejected' || reason === 'busy' || reason === 'timeout')
+      ) {
+        return;
+      }
       if (wasOutRing && (reason === 'rejected' || reason === 'busy' || reason === 'timeout')) {
         await postMissedCall(p, 'missed');
       }
@@ -489,7 +686,7 @@ export function CallProvider({ children }) {
       socket.off('call_ice', onIce);
       socket.off('call_end', onEnd);
     };
-  }, [isAuthenticated, conversations, flushIce, resetCall, postMissedCall]);
+  }, [isAuthenticated, flushIce, resetCall, postMissedCall]);
 
   useEffect(() => () => cleanupMedia(), [cleanupMedia]);
 

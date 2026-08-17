@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FiPhone, FiSearch, FiUsers, FiVideo, FiX } from 'react-icons/fi';
+import { FiPhone, FiSearch, FiUsers, FiX } from 'react-icons/fi';
 import Avatar from '@components/ui/Avatar';
 import Spinner from '@components/ui/Spinner';
 import { useCall } from '@context/CallContext';
@@ -77,7 +77,7 @@ export default function CallPage() {
     <div className="call-page">
       <header className="call-page__head">
         <h1>تماس</h1>
-        <p className="call-page__sub">مخاطب یا گروه را انتخاب کنید</p>
+        <p className="call-page__sub">یک تماس واحد — دوربین را وسط تماس روشن کنید</p>
       </header>
 
       <div className="call-page__tabs" role="tablist">
@@ -136,19 +136,12 @@ export default function CallPage() {
                 <div className="call-row__actions">
                   <button
                     type="button"
-                    className="call-row__btn"
-                    title="تماس صوتی"
+                    className="call-row__btn call-row__btn--primary"
+                    title="تماس"
                     onClick={() => callContact(c, { video: false })}
                   >
                     <FiPhone size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    className="call-row__btn call-row__btn--video"
-                    title="تماس ویدیویی"
-                    onClick={() => callContact(c, { video: true })}
-                  >
-                    <FiVideo size={18} />
+                    تماس
                   </button>
                 </div>
               </div>
@@ -171,11 +164,12 @@ export default function CallPage() {
               <div className="call-row__actions">
                 <button
                   type="button"
-                  className="call-row__btn"
+                  className="call-row__btn call-row__btn--primary"
                   title="تماس گروهی"
                   onClick={() => callConversation(g, { video: false })}
                 >
                   <FiPhone size={18} />
+                  تماس
                 </button>
               </div>
             </div>

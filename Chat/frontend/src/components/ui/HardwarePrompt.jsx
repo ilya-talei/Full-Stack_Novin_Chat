@@ -8,8 +8,8 @@ export default function HardwarePrompt() {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" aria-hidden />
-      <div className="relative w-full max-w-md rounded-3xl border border-hairline/15 bg-[rgb(var(--surface-panel))] shadow-2xl p-6">
+      <div className="absolute inset-0 bg-black/40" aria-hidden />
+      <div className="relative w-full max-w-md rounded-2xl border border-hairline/[0.1] bg-[rgb(var(--surface-panel))] p-6">
         <div className="text-center mb-6">
           <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-npurple-borders/15 text-npurple-borders flex items-center justify-center">
             <FiCpu size={26} />

@@ -17,18 +17,19 @@ function readHardware() {
   return v === 'strong' || v === 'weak' ? v : null;
 }
 
-function readGlassEnabled(hardware) {
-  if (typeof window === 'undefined') return true;
+function readGlassEnabled() {
+  if (typeof window === 'undefined') return false;
   const raw = localStorage.getItem(GLASS_KEY);
-  if (raw === '1') return true;
-  if (raw === '0') return false;
-  return hardware !== 'weak';
+  // Liquid refraction retired — keep stored preference only if explicitly '1'
+  // but default off for a clean matte UI.
+  if (raw === '1') return false;
+  return false;
 }
 
 export function PerformanceProvider({ children }) {
   const [hardware, setHardwareState] = useState(readHardware);
   const [liquidGlassEnabled, setLiquidGlassEnabledState] = useState(() =>
-    readGlassEnabled(readHardware())
+    readGlassEnabled()
   );
   // Ask again on every login / session entry — not only the first visit
   const [forceHardwarePrompt, setForceHardwarePrompt] = useState(false);
@@ -44,8 +45,8 @@ export function PerformanceProvider({ children }) {
     localStorage.setItem(HARDWARE_KEY, next);
     setHardwareState(next);
 
-    const enableGlass = next === 'strong';
-    localStorage.setItem(GLASS_KEY, enableGlass ? '1' : '0');
+    const enableGlass = false;
+    localStorage.setItem(GLASS_KEY, '0');
     setLiquidGlassEnabledState(enableGlass);
     setForceHardwarePrompt(false);
   }, []);

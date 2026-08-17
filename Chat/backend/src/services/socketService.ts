@@ -291,7 +291,13 @@ class SocketService {
 
     handleTyping = async (socket: ChatSocket, data: unknown) => {
         const parsed = z
-            .object({ chat_id: z.coerce.number().int().positive() })
+            .object({
+                chat_id: z.coerce.number().int().positive(),
+                activity: z
+                    .enum(["typing", "choosing_emoji", "choosing_sticker", "choosing_gif"])
+                    .optional()
+                    .default("typing"),
+            })
             .safeParse(data);
         if (!parsed.success) return;
 
@@ -300,6 +306,7 @@ class SocketService {
             .emit("typing", {
                 chat_id: parsed.data.chat_id,
                 userId: socket.jwtSession!.userId,
+                activity: parsed.data.activity,
             });
     };
 

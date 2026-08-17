@@ -38,7 +38,7 @@ export default function PremiumPage() {
     <div className="min-h-full pb-28 bg-[rgb(var(--surface-panel))]">
       <TgNavHeader title="پرمیوم" onBack={() => navigate(ROUTES.ACCOUNT)} />
       <div className="px-6 pt-8 pb-4 flex flex-col items-center text-center">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F5C84C] to-[#E8A317] flex items-center justify-center text-white shadow-lg">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F5C84C] to-[#E8A317] flex items-center justify-center text-white">
           <FiStar size={36} />
         </div>
         <h2 className="mt-4 text-[22px] font-bold text-ink">Novin Chat Premium</h2>

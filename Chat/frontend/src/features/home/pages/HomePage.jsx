@@ -4,6 +4,7 @@ import { useDebounce } from '@hooks/useDebounce';
 import { useChat } from '@context/ChatContext';
 import { useToast } from '@components/ui/Toast';
 import ChatList from '@/features/chat/components/ChatList';
+import ChatWallpaper from '@/features/chat/components/ChatWallpaper';
 import ChatActionMenu from '@/features/chat/components/ChatActionMenu';
 import CreateGroupModal from '@/features/chat/components/CreateGroupModal';
 import CreateChannelModal from '@/features/chat/components/CreateChannelModal';
@@ -45,8 +46,8 @@ function FolderChip({ label, active, onClick }) {
       onClick={onClick}
       className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] transition-colors ${
         active
-          ? 'bg-npurple-borders/15 text-npurple-borders font-semibold'
-          : 'text-ink-muted hover:text-ink hover:bg-black/4 dark:hover:bg-white/6'
+          ? 'bg-npurple-borders/12 text-npurple-borders font-medium'
+          : 'text-ink-muted hover:text-ink hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
       }`}
     >
       {label}
@@ -168,8 +169,10 @@ export default function HomePage() {
   };
 
   return (
-    <div className="relative min-h-full flex flex-col pb-4">
-      <div className="sticky top-0 z-20 px-3 sm:px-4 pt-2.5 pb-2 bg-gradient-to-b from-[rgb(var(--surface-app))] via-[rgb(var(--surface-app))]/92 to-transparent">
+    <div className="home-page flex flex-col">
+      <ChatWallpaper />
+
+      <div className="home-header">
         <DynamicIsland
           title={pageTitle}
           subtitle={config.appName}
@@ -180,7 +183,7 @@ export default function HomePage() {
           onToggleTheme={toggleTheme}
         />
 
-        <div className="mt-3 flex gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-0.5">
+        <div className="home-filters">
           {folders.map((folder) => (
             <FolderChip
               key={folder.id}
@@ -192,53 +195,58 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="mt-1 mx-1 flex-1">
-        {loading && conversations.length === 0 ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} variant="card" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 px-6">
-            <p className="text-ink font-medium">
-              {debouncedSearch ? 'نتیجه‌ای یافت نشد' : 'گفتگویی وجود ندارد'}
-            </p>
-            <p className="text-ink-muted text-sm mt-2 leading-relaxed">
-              با دکمه + در پایین، گفتگو، گروه یا کانال جدید بسازید
-            </p>
-          </div>
-        ) : (
-          <ChatList
-            conversations={filtered}
-            activeChat={activeChat}
-            onSelect={selectChat}
-          />
-        )}
+      <div className="home-card">
+        <div className="home-card__scroll">
+          {loading && conversations.length === 0 ? (
+            <div className="space-y-3 p-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} variant="card" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 px-6">
+              <p className="text-ink font-medium">
+                {debouncedSearch ? 'نتیجه‌ای یافت نشد' : 'گفتگویی وجود ندارد'}
+              </p>
+              <p className="text-ink-muted text-sm mt-2 leading-relaxed">
+                با دکمه + در پایین، گفتگو، گروه یا کانال جدید بسازید
+              </p>
+            </div>
+          ) : (
+            <ChatList
+              conversations={filtered}
+              activeChat={activeChat}
+              onSelect={selectChat}
+            />
+          )}
+        </div>
+
+        <NewChatModal
+          isOpen={modals.chat}
+          onClose={() => setModals((m) => ({ ...m, chat: false }))}
+          onSelectContact={handleStartChat}
+          placement="list"
+        />
+        <CreateGroupModal
+          isOpen={modals.group}
+          onClose={() => setModals((m) => ({ ...m, group: false }))}
+          onSubmit={handleCreateGroup}
+          loading={loading}
+          placement="list"
+        />
+        <CreateChannelModal
+          isOpen={modals.channel}
+          onClose={() => setModals((m) => ({ ...m, channel: false }))}
+          onSubmit={handleCreateChannel}
+          loading={loading}
+          placement="list"
+        />
       </div>
 
       <ChatActionMenu
         onNewChat={() => setModals((m) => ({ ...m, chat: true }))}
         onNewGroup={() => setModals((m) => ({ ...m, group: true }))}
         onNewChannel={() => setModals((m) => ({ ...m, channel: true }))}
-      />
-
-      <NewChatModal
-        isOpen={modals.chat}
-        onClose={() => setModals((m) => ({ ...m, chat: false }))}
-        onSelectContact={handleStartChat}
-      />
-      <CreateGroupModal
-        isOpen={modals.group}
-        onClose={() => setModals((m) => ({ ...m, group: false }))}
-        onSubmit={handleCreateGroup}
-        loading={loading}
-      />
-      <CreateChannelModal
-        isOpen={modals.channel}
-        onClose={() => setModals((m) => ({ ...m, channel: false }))}
-        onSubmit={handleCreateChannel}
-        loading={loading}
       />
     </div>
   );

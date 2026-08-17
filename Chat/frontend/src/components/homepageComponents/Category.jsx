@@ -52,7 +52,7 @@ export default function Category() {
         <div className="absolute top-full left-0 mt-2 z-40 w-44 animate-slide-in">
           <LiquidGlass
             fill
-            className="rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.28)]"
+            className="rounded-2xl"
             contentClassName="flex-col items-stretch"
             {...CHAT_INPUT_GLASS}
             overlay={chatGlassOverlay(isDark)}

@@ -25,6 +25,7 @@ import {
   encodeForwardMessage,
   encodeMediaMessage,
 } from '../utils/messageMeta';
+import { contentPermission, getChatSendFlags, mediaKindPermission } from '../utils/chatPermissions';
 import {
   applyEmojiShortcuts,
   getRecentEmojis,
@@ -66,10 +67,12 @@ export default function TypewriteBox({
   onClearEdit,
   onConfirmEdit,
   onJumpToReply,
+  onSent,
 }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState('emoji');
   const [showAttach, setShowAttach] = useState(false);
   const [recent, setRecent] = useState(() => getRecentEmojis());
   const [recMode, setRecMode] = useState(null); // 'voice' | 'videonote' | null
@@ -81,7 +84,6 @@ export default function TypewriteBox({
   const { addToast } = useToast();
   const inputRef = useRef(null);
   const boxRef = useRef(null);
-  const typingTimer = useRef(null);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -92,6 +94,17 @@ export default function TypewriteBox({
   const recStartedAt = useRef(0);
   const videoPreviewRef = useRef(null);
   const isEditing = Boolean(editingMessage?.id);
+  const pickerActivity =
+    pickerTab === 'sticker'
+      ? 'choosing_sticker'
+      : pickerTab === 'gif'
+        ? 'choosing_gif'
+        : 'choosing_emoji';
+  const composerActivity = showPicker
+    ? pickerActivity
+    : text.length > 0 || Boolean(replyTo)
+      ? 'typing'
+      : null;
 
   const suggestStickers = settings.stickers?.suggestStickers !== false;
   const suggestAnimated = settings.stickers?.suggestAnimatedEmoji !== false;
@@ -149,11 +162,28 @@ export default function TypewriteBox({
     onClearReply?.();
     onClearEdit?.();
     return () => {
-      if (typingTimer.current) clearTimeout(typingTimer.current);
       if (activeChat) socketService.emitTyping(activeChat.id, false);
       resetRecorder();
     };
   }, [activeChat?.id]);
+
+  useEffect(() => {
+    if (!activeChat || !composerActivity || sending) {
+      if (activeChat) socketService.emitTyping(activeChat.id, false);
+      return undefined;
+    }
+
+    const emit = () => {
+      socketService.emitTyping(activeChat.id, true, composerActivity);
+    };
+    emit();
+    const heartbeat = window.setInterval(emit, 2500);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      socketService.emitTyping(activeChat.id, false);
+    };
+  }, [activeChat?.id, composerActivity, sending]);
 
   useEffect(() => {
     if (editingMessage?.id) {
@@ -205,6 +235,14 @@ export default function TypewriteBox({
     }
   }, [recMode]);
 
+  // Sending must never move focus away from the textarea, otherwise mobile
+  // keyboards close and reopen on every message.
+  const keepInputFocus = () => {
+    const el = inputRef.current;
+    if (!el || document.activeElement === el) return;
+    el.focus({ preventScroll: true });
+  };
+
   const handleSend = async (rawText) => {
     let value = String(rawText ?? text).trim();
     if (!value || !activeChat || sending) return;
@@ -212,6 +250,13 @@ export default function TypewriteBox({
       value = applyEmojiShortcuts(value).trim();
     }
     if (!value) return;
+
+    const sendFlags = getChatSendFlags(activeChat);
+    const needed = contentPermission(value);
+    if (!sendFlags[needed]) {
+      addToast('ارسال این نوع محتوا در این گفتگو مجاز نیست', 'error');
+      return;
+    }
 
     if (isEditing) {
       let payload = value;
@@ -227,6 +272,8 @@ export default function TypewriteBox({
         await onConfirmEdit?.(payload, editingMessage);
         setText('');
         onClearEdit?.();
+        if (!showPicker) keepInputFocus();
+        onSent?.();
       } catch (err) {
         addToast(err?.message || 'ویرایش ناموفق بود', 'error');
       } finally {
@@ -246,7 +293,8 @@ export default function TypewriteBox({
       setText('');
       onClearReply?.();
       socketService.emitTyping(activeChat.id, false);
-      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+      if (!showPicker) keepInputFocus();
+      onSent?.();
     } catch (err) {
       addToast(err?.message || 'ارسال پیام ناموفق بود', 'error');
     } finally {
@@ -256,6 +304,10 @@ export default function TypewriteBox({
 
   const uploadAndSend = async (file, kind, extra = {}) => {
     if (!activeChat || sending || isEditing) return;
+    if (!getChatSendFlags(activeChat)[mediaKindPermission(kind)]) {
+      addToast('ارسال این نوع رسانه در این گفتگو مجاز نیست', 'error');
+      return;
+    }
     const limit = LIMITS[kind] || LIMITS.file;
     if (file.size > limit) {
       addToast('حجم فایل بیش از حد مجاز است', 'error');
@@ -295,6 +347,10 @@ export default function TypewriteBox({
 
   const startRecording = async (mode) => {
     if (sending || isEditing || recMode) return;
+    if (!getChatSendFlags(activeChat)[mediaKindPermission(mode)]) {
+      addToast('ارسال این نوع پیام در این گفتگو مجاز نیست', 'error');
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       addToast('مرورگر از ضبط پشتیبانی نمی‌کند', 'error');
       return;
@@ -413,12 +469,6 @@ export default function TypewriteBox({
     let next = e.target.value;
     if (replaceEmoji) next = applyEmojiShortcuts(next);
     setText(next);
-    if (!activeChat || isEditing) return;
-    socketService.emitTyping(activeChat.id, true);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(() => {
-      socketService.emitTyping(activeChat.id, false);
-    }, 1200);
   };
 
   const handleKeyDown = (e) => {
@@ -448,7 +498,9 @@ export default function TypewriteBox({
       return;
     }
     setText((prev) => `${prev}${emoji}`);
-    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+    if (!showPicker) {
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+    }
   };
 
   const handleMediaSelect = (item) => {
@@ -464,17 +516,59 @@ export default function TypewriteBox({
       chars.pop();
       return chars.join('');
     });
+    if (!showPicker) {
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+    }
+  };
+
+  const handlePickerToggle = () => {
+    const nextOpen = !showPicker;
+    setShowAttach(false);
+    setShowPicker(nextOpen);
+
+    const isMobile =
+      window.matchMedia?.('(max-width: 640px), (pointer: coarse)').matches;
+    if (nextOpen && isMobile) {
+      inputRef.current?.blur();
+    } else if (!nextOpen) {
+      requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+    }
+  };
+
+  const closePicker = () => {
+    setShowPicker(false);
     requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
   };
 
   if (!activeChat) return null;
 
   const isChannel = activeChat.type === 'channels';
-  const canSend = Boolean(text.trim()) && !sending;
-  const showMediaActions = !isEditing && !text.trim() && !recMode;
+  const flags = getChatSendFlags(activeChat);
+  const canComposeText = flags.send_messages !== false;
+  const canAttach =
+    flags.send_photos || flags.send_videos || flags.send_files;
+  const canVoice = Boolean(flags.send_voice);
+  const canVideoNote = Boolean(flags.send_video_messages);
+  const canSend = Boolean(text.trim()) && !sending && canComposeText;
+  const showMediaActions =
+    !isEditing && !text.trim() && !recMode && (canVoice || canVideoNote);
+  const allowedPickerTabs = [
+    'emoji',
+    flags.send_stickers ? 'sticker' : null,
+    flags.send_gifs ? 'gif' : null,
+  ].filter(Boolean);
+
+  const isMobileComposer =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(max-width: 640px), (pointer: coarse)').matches;
 
   return (
-    <div className="px-3 sm:px-4 pb-3 pt-2" ref={boxRef} data-composer-root>
+    <div
+      className={`chat-composer px-3 sm:px-4 pb-3 pt-2 ${showPicker ? 'is-picker-open' : ''}`}
+      ref={boxRef}
+      data-composer-root
+      data-picker-open={showPicker ? 'true' : 'false'}
+    >
       <input
         ref={photoInputRef}
         type="file"
@@ -633,21 +727,15 @@ export default function TypewriteBox({
             </div>
           </div>
         ) : (
-          <div className="flex items-end gap-2">
-            <div className="relative flex-1 min-w-0">
-              <MediaPicker
-                open={showPicker}
-                onClose={() => setShowPicker(false)}
-                onEmojiSelect={insertEmoji}
-                onMediaSelect={handleMediaSelect}
-                onBackspace={handleBackspace}
-              />
-
-              {showAttach && !isEditing ? (
+          <div className="composer-stack relative">
+          <div className="composer-row flex items-end gap-2">
+            <div className="composer-input-wrap relative flex-1 min-w-0">
+              {showAttach && !isEditing && canAttach ? (
                 <div className="composer-attach" role="menu">
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={!flags.send_photos}
                     onClick={() => {
                       setShowAttach(false);
                       photoInputRef.current?.click();
@@ -659,6 +747,7 @@ export default function TypewriteBox({
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={!flags.send_videos}
                     onClick={() => {
                       setShowAttach(false);
                       videoInputRef.current?.click();
@@ -670,6 +759,7 @@ export default function TypewriteBox({
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={!flags.send_files}
                     onClick={() => {
                       setShowAttach(false);
                       fileInputRef.current?.click();
@@ -683,18 +773,16 @@ export default function TypewriteBox({
 
               <LiquidGlass
                 fill
-                className="rounded-[2rem] shadow-sm shadow-black/10"
+                className="rounded-[1.75rem]"
                 contentClassName="items-end"
                 {...CHAT_INPUT_GLASS}
                 overlay={chatGlassOverlay(isDark)}
               >
-                <div className="w-full flex items-end gap-0.5 px-1.5 py-1">
+                <div className="composer-input-row w-full flex items-end gap-0.5 px-1.5 py-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAttach(false);
-                      setShowPicker((v) => !v);
-                    }}
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={handlePickerToggle}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl shrink-0 transition-colors ${
                       showPicker
                         ? 'text-npurple-borders bg-npurple-borders/15'
@@ -707,7 +795,7 @@ export default function TypewriteBox({
                     <BsEmojiSmile size={20} strokeWidth={0.5} />
                   </button>
 
-                  {!isEditing ? (
+                  {!isEditing && canAttach ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -730,9 +818,13 @@ export default function TypewriteBox({
                   <textarea
                     ref={inputRef}
                     rows={1}
-                    className="bg-transparent outline-none flex-1 text-ink placeholder:text-ink-muted text-[14px] leading-5 resize-none max-h-[120px] py-2 px-0.5 min-w-0"
+                    readOnly={showPicker && isMobileComposer}
+                    inputMode={showPicker && isMobileComposer ? 'none' : 'text'}
+                    className="composer-textarea bg-transparent outline-none flex-1 text-ink placeholder:text-ink-muted text-[14px] leading-5 resize-none max-h-[120px] py-2 px-0.5 min-w-0"
                     placeholder={
-                      isEditing
+                      !canComposeText
+                        ? 'ارسال پیام در این گفتگو مجاز نیست'
+                        : isEditing
                         ? 'متن ویرایش‌شده...'
                         : isChannel
                           ? 'پیام در کانال...'
@@ -741,8 +833,8 @@ export default function TypewriteBox({
                     value={text}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
-                    disabled={sending}
                     dir="auto"
+                    disabled={!canComposeText && !isEditing}
                   />
                 </div>
               </LiquidGlass>
@@ -750,58 +842,64 @@ export default function TypewriteBox({
 
             {showMediaActions ? (
               <>
-                <LiquidGlass
-                  button
-                  className="rounded-xl shrink-0 shadow-md shadow-black/10"
-                  {...CHAT_INPUT_GLASS}
-                  overlay={chatGlassOverlay(isDark)}
-                >
-                  <button
-                    type="button"
-                    onClick={() => startRecording('videonote')}
-                    disabled={sending}
-                    aria-label="ویدیو مسیج"
-                    title="ویدیو مسیج کوتاه"
-                    className="w-11 h-11 flex items-center justify-center rounded-xl text-ink hover:text-npurple-borders transition-colors"
+                {canVideoNote ? (
+                  <LiquidGlass
+                    button
+                    className="composer-action rounded-xl shrink-0"
+                    {...CHAT_INPUT_GLASS}
+                    overlay={chatGlassOverlay(isDark)}
                   >
-                    <FiCamera size={18} />
-                  </button>
-                </LiquidGlass>
-                <LiquidGlass
-                  button
-                  className="rounded-xl shrink-0 shadow-md shadow-black/10"
-                  {...CHAT_INPUT_GLASS}
-                  overlay={CHAT_GLASS_ACCENT_OVERLAY}
-                >
-                  <button
-                    type="button"
-                    onClick={() => startRecording('voice')}
-                    disabled={sending}
-                    aria-label="پیام صوتی"
-                    title="پیام صوتی"
-                    className="w-11 h-11 flex items-center justify-center rounded-xl text-white transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => startRecording('videonote')}
+                      disabled={sending}
+                      aria-label="ویدیو مسیج"
+                      title="ویدیو مسیج کوتاه"
+                      className="composer-action-button w-11 h-11 flex items-center justify-center rounded-xl text-ink hover:text-npurple-borders transition-colors"
+                    >
+                      <FiCamera size={18} />
+                    </button>
+                  </LiquidGlass>
+                ) : null}
+                {canVoice ? (
+                  <LiquidGlass
+                    button
+                    className="composer-action rounded-xl shrink-0"
+                    {...CHAT_INPUT_GLASS}
+                    overlay={CHAT_GLASS_ACCENT_OVERLAY}
                   >
-                    {sending ? (
-                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <FiMic size={18} />
-                    )}
-                  </button>
-                </LiquidGlass>
+                    <button
+                      type="button"
+                      onClick={() => startRecording('voice')}
+                      disabled={sending}
+                      aria-label="پیام صوتی"
+                      title="پیام صوتی"
+                      className="composer-action-button w-11 h-11 flex items-center justify-center rounded-xl text-white transition-colors"
+                    >
+                      {sending ? (
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <FiMic size={18} />
+                      )}
+                    </button>
+                  </LiquidGlass>
+                ) : null}
               </>
             ) : (
               <LiquidGlass
                 button
-                className="rounded-xl shrink-0 shadow-md shadow-black/10"
+                className="composer-action rounded-xl shrink-0"
                 {...CHAT_INPUT_GLASS}
                 overlay={canSend ? CHAT_GLASS_ACCENT_OVERLAY : chatGlassOverlay(isDark)}
               >
                 <button
                   type="button"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSend()}
                   disabled={!canSend}
                   aria-label={isEditing ? 'تأیید ویرایش' : 'ارسال'}
-                  className={`w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
+                  className={`composer-action-button w-11 h-11 flex items-center justify-center rounded-xl transition-colors ${
                     canSend ? 'text-white' : 'text-ink-muted cursor-default'
                   }`}
                 >
@@ -815,6 +913,16 @@ export default function TypewriteBox({
                 </button>
               </LiquidGlass>
             )}
+          </div>
+          <MediaPicker
+            open={showPicker}
+            onClose={closePicker}
+            onTabChange={setPickerTab}
+            allowedTabs={allowedPickerTabs}
+            onEmojiSelect={insertEmoji}
+            onMediaSelect={handleMediaSelect}
+            onBackspace={handleBackspace}
+          />
           </div>
         )}
       </div>

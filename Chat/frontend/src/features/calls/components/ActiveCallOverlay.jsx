@@ -7,7 +7,9 @@ import '../pages/call-page.css';
 export default function ActiveCallOverlay() {
   const { status } = useCall();
 
-  if (status === CALL_STATES.IDLE) return null;
+  // An incoming call starts as a compact notification. The immersive stage is
+  // shown only after answering (or while placing an outgoing call).
+  if (status === CALL_STATES.IDLE || status === CALL_STATES.INCOMING) return null;
 
   return createPortal(
     <div className="call-overlay" role="dialog" aria-modal="true" aria-label="صفحه تماس">

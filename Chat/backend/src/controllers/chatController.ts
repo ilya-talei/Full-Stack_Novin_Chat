@@ -67,7 +67,7 @@ export const chatMediaUpload = multer({
     },
 });
 
-const MEDIA_KINDS = new Set(["photo", "video", "file", "voice", "videonote"]);
+const MEDIA_KINDS = new Set(["photo", "video", "file", "voice", "videonote", "sticker", "gif"]);
 
 class ChatController {
     private async onlineSet(req: Request) {
@@ -226,8 +226,8 @@ class ChatController {
             }
 
             const fileType = await fileTypeFromBuffer(file.buffer);
-            if (!fileType || !["image/png", "image/jpeg"].includes(fileType.mime)) {
-                throw new AppError("فرمت های مجاز برای تصویر png و jpeg هستند", 400);
+            if (!fileType || !["image/png", "image/jpeg", "image/webp"].includes(fileType.mime)) {
+                throw new AppError("فرمت های مجاز برای تصویر png و jpeg و webp هستند", 400);
             }
 
             const fileName = await req.tenant!.services.ChatService.uploadAvatar(
@@ -256,13 +256,18 @@ class ChatController {
             }
 
             const mime = file.mimetype || "";
-            if (kind === "photo" && !mime.startsWith("image/")) {
+            if (["photo", "sticker", "gif"].includes(kind) && !mime.startsWith("image/")) {
                 throw new AppError("فقط تصویر مجاز است", 400);
             }
             if ((kind === "video" || kind === "videonote") && !mime.startsWith("video/")) {
                 throw new AppError("فقط ویدیو مجاز است", 400);
             }
-            if (kind === "voice" && !mime.startsWith("audio/") && mime !== "video/webm" && mime !== "audio/webm") {
+            if (
+                kind === "voice" &&
+                !mime.startsWith("audio/") &&
+                mime !== "video/webm" &&
+                mime !== "audio/webm"
+            ) {
                 throw new AppError("فقط صوت مجاز است", 400);
             }
 
@@ -286,13 +291,14 @@ class ChatController {
             const fileName = String(req.params.fileName || "");
             const storage = String(req.query.storage || "local");
 
-            const { stream, contentType } = await req.tenant!.services.ChatService.getChatMediaStream(
-                chatId,
-                req.userId!,
-                decodeURIComponent(fileName),
-                storage,
-                req.tenant!.data.id,
-            );
+            const { stream, contentType } =
+                await req.tenant!.services.ChatService.getChatMediaStream(
+                    chatId,
+                    req.userId!,
+                    decodeURIComponent(fileName),
+                    storage,
+                    req.tenant!.data.id,
+                );
 
             res.setHeader("Content-Type", contentType);
             res.setHeader("Cache-Control", "private, max-age=86400");

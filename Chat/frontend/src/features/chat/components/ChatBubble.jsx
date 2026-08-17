@@ -19,7 +19,7 @@ function formatBytes(n) {
   return `${(num / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function MediaBody({ media, isMe }) {
+function MediaBody({ media, isMe, onOpen }) {
   const type = media.type;
 
   if (type === 'sticker') {
@@ -37,21 +37,34 @@ function MediaBody({ media, isMe }) {
 
   if (type === 'gif' || type === 'photo') {
     return (
-      <div className="overflow-hidden rounded-xl -mx-1 -mt-0.5 w-full">
+      <button
+        type="button"
+        className="block overflow-hidden rounded-xl -mx-1 -mt-0.5 w-full cursor-zoom-in"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen?.(media);
+        }}
+        aria-label={type === 'gif' ? 'بزرگ‌نمایی گیف' : 'بزرگ‌نمایی عکس'}
+      >
         <img
           src={media.url}
           alt={type === 'gif' ? 'گیف' : 'عکس'}
           className="block w-full max-h-[min(52vh,18rem)] object-cover rounded-xl"
           loading="lazy"
         />
-      </div>
+      </button>
     );
   }
 
   if (type === 'video') {
     return (
       <div className="overflow-hidden rounded-xl -mx-1 -mt-0.5 w-full min-w-0">
-        <VideoPlayer src={media.url} duration={media.duration} />
+        <VideoPlayer
+          src={media.url}
+          duration={media.duration}
+          onOpen={() => onOpen?.(media)}
+        />
       </div>
     );
   }
@@ -177,6 +190,7 @@ export default function ChatBubble({
   onOpenMenu,
   onToggleSelect,
   onJumpToReply,
+  onOpenMedia,
 }) {
   const isMe = message.senderId === 'me';
   const { settings } = useSettings();
@@ -420,7 +434,15 @@ export default function ChatBubble({
             {call ? (
               <CallMessageCard call={call} isMe={isMe} />
             ) : media ? (
-              <MediaBody media={media} isMe={isMe} />
+              <MediaBody
+                media={media}
+                isMe={isMe}
+                onOpen={
+                  selectionMode
+                    ? () => onToggleSelect?.(message.id)
+                    : onOpenMedia
+                }
+              />
             ) : (
               <p
                 className={`m-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] ${

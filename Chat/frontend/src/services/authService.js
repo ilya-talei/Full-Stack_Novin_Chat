@@ -158,6 +158,13 @@ export const authService = {
     }
   },
 
+  updateStoredUser(user) {
+    const storage =
+      localStorage.getItem(config.userKey) != null ? localStorage : sessionStorage;
+    storage.setItem(config.userKey, JSON.stringify(user));
+    return user;
+  },
+
   getStoredToken() {
     return localStorage.getItem(config.tokenKey) || sessionStorage.getItem(config.tokenKey);
   },

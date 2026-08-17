@@ -15,6 +15,7 @@ import ErrorBoundary from '@components/ErrorBoundary';
 import Spinner from '@components/ui/Spinner';
 import { ROUTES } from '@constants/routes';
 import ActiveCallOverlay from '@features/calls/components/ActiveCallOverlay';
+import IncomingCallBanner from '@features/calls/components/IncomingCallBanner';
 
 const LoginPage = lazy(() => import('@features/auth/pages/LoginPage'));
 const MainLayout = lazy(() => import('@components/layout/MainLayout'));
@@ -30,17 +31,18 @@ function AppShell() {
   const { activeChat } = useChat();
 
   return (
-    <div className="flex h-screen w-screen chat-bg overflow-hidden">
+    <div className="app-shell flex chat-bg overflow-hidden">
+      <IncomingCallBanner />
       <ActiveCallOverlay />
       <div
-        className={`flex-shrink-0 w-full md:w-[400px] text-lg relative border-l border-hairline/10 bg-surface-panel/40 backdrop-blur-xl flex flex-col h-screen min-h-0 overflow-hidden ${
+        className={`app-sidebar flex-shrink-0 w-full md:w-[380px] text-base relative border-l border-hairline/[0.06] bg-surface-panel flex flex-col min-h-0 overflow-hidden ${
           activeChat ? 'hidden md:flex' : 'flex'
         }`}
       >
         <MainLayout />
       </div>
       <div
-        className={`flex-1 min-w-0 ${
+        className={`app-chat-pane flex-1 min-w-0 ${
           activeChat ? 'flex' : 'hidden md:flex'
         }`}
       >
@@ -65,7 +67,7 @@ export default function App() {
                       <BrowserRouter>
                         <Suspense
                           fallback={
-                            <div className="flex items-center justify-center h-screen chat-bg">
+                            <div className="app-shell flex items-center justify-center chat-bg">
                               <Spinner size="lg" />
                             </div>
                           }

@@ -338,7 +338,15 @@ const KlipyGrid = memo(function KlipyGrid({ kind, onSelect }) {
   );
 });
 
-function MediaPicker({ open, onClose, onEmojiSelect, onMediaSelect, onBackspace }) {
+function MediaPicker({
+  open,
+  onClose,
+  onTabChange,
+  allowedTabs,
+  onEmojiSelect,
+  onMediaSelect,
+  onBackspace,
+}) {
   const [tab, setTab] = useState('emoji');
   const rootRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -350,6 +358,21 @@ function MediaPicker({ open, onClose, onEmojiSelect, onMediaSelect, onBackspace 
   onMediaSelectRef.current = onMediaSelect;
   onBackspaceRef.current = onBackspace;
 
+  const visibleTabs = useMemo(
+    () => TABS.filter((item) => !allowedTabs || allowedTabs.includes(item.id)),
+    [allowedTabs]
+  );
+
+  useEffect(() => {
+    if (open) onTabChange?.(tab);
+  }, [open, tab, onTabChange]);
+
+  useEffect(() => {
+    if (visibleTabs.length && !visibleTabs.some((item) => item.id === tab)) {
+      setTab(visibleTabs[0].id);
+    }
+  }, [tab, visibleTabs]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onDoc = (e) => {
@@ -359,12 +382,12 @@ function MediaPicker({ open, onClose, onEmojiSelect, onMediaSelect, onBackspace 
       if (e.key === 'Escape') onCloseRef.current?.();
     };
     const t = window.setTimeout(() => {
-      document.addEventListener('mousedown', onDoc);
+      document.addEventListener('pointerdown', onDoc);
       document.addEventListener('keydown', onKey);
     }, 0);
     return () => {
       window.clearTimeout(t);
-      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('pointerdown', onDoc);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
@@ -402,7 +425,7 @@ function MediaPicker({ open, onClose, onEmojiSelect, onMediaSelect, onBackspace 
 
       <div className="media-picker__dock">
         <div className="media-picker__tabs">
-          {TABS.map(({ id, label, Icon }) => (
+          {visibleTabs.map(({ id, label, Icon }) => (
             <button
               key={id}
               type="button"

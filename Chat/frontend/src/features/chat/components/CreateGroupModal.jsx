@@ -6,7 +6,7 @@ import Avatar from '@components/ui/Avatar';
 import { contactsService } from '@services/contactsService';
 import Spinner from '@components/ui/Spinner';
 
-export default function CreateGroupModal({ isOpen, onClose, onSubmit, loading }) {
+export default function CreateGroupModal({ isOpen, onClose, onSubmit, loading, placement = 'center' }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [contacts, setContacts] = useState([]);
@@ -41,7 +41,7 @@ export default function CreateGroupModal({ isOpen, onClose, onSubmit, loading })
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="ایجاد گروه جدید" size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title="ایجاد گروه جدید" size="lg" placement={placement}>
       <div className="space-y-4">
         <Input
           label="نام گروه"

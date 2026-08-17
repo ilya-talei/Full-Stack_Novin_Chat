@@ -96,6 +96,31 @@ class MinIOService {
         return fileName;
     }
 
+    public async uploadUserAvatar(fileBuffer: Buffer<ArrayBufferLike>, userId: number) {
+        const bucket = `tenant-${this.tenant.data.id}.user_avatars`;
+        await MinIOService.createIfNotExists(this.minioClient, bucket);
+        const fileName = `${userId}-${Date.now()}.webp`;
+        await this.minioClient.putObject(bucket, fileName, fileBuffer, fileBuffer.length, {
+            "Content-Type": "image/webp",
+        });
+        return fileName;
+    }
+
+    public async getUserAvatarUrl(fileName: string) {
+        const bucket = `tenant-${this.tenant.data.id}.user_avatars`;
+        return this.minioClient.presignedGetObject(bucket, fileName, 7 * 24 * 60 * 60);
+    }
+
+    public async getUserAvatarObject(fileName: string) {
+        const bucket = `tenant-${this.tenant.data.id}.user_avatars`;
+        return this.minioClient.getObject(bucket, fileName);
+    }
+
+    public async getChatAvatarUrl(fileName: string) {
+        const bucket = `tenant-${this.tenant.data.id}.chat_avatars`;
+        return this.minioClient.presignedGetObject(bucket, fileName, 7 * 24 * 60 * 60);
+    }
+
     public async uploadChatMedia(
         fileBuffer: Buffer,
         opts: {

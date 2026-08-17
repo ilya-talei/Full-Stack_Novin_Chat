@@ -27,16 +27,21 @@ const BASE_ACTIONS = [
 
 function clampPosition(x, y, width, height) {
   const pad = 8;
+  const viewport = window.visualViewport;
+  const viewportLeft = viewport?.offsetLeft || 0;
+  const viewportTop = viewport?.offsetTop || 0;
+  const viewportWidth = viewport?.width || window.innerWidth;
+  const viewportHeight = viewport?.height || window.innerHeight;
   let left = x;
   let top = y;
-  if (left + width > window.innerWidth - pad) {
-    left = Math.max(pad, window.innerWidth - width - pad);
+  if (left + width > viewportLeft + viewportWidth - pad) {
+    left = Math.max(viewportLeft + pad, viewportLeft + viewportWidth - width - pad);
   }
-  if (top + height > window.innerHeight - pad) {
-    top = Math.max(pad, window.innerHeight - height - pad);
+  if (top + height > viewportTop + viewportHeight - pad) {
+    top = Math.max(viewportTop + pad, viewportTop + viewportHeight - height - pad);
   }
-  if (left < pad) left = pad;
-  if (top < pad) top = pad;
+  if (left < viewportLeft + pad) left = viewportLeft + pad;
+  if (top < viewportTop + pad) top = viewportTop + pad;
   return { left, top };
 }
 
@@ -78,11 +83,18 @@ export default function MessageContextMenu({
     const onKey = (e) => {
       if (e.key === 'Escape') onClose?.();
     };
+    const onViewportChange = () => {
+      const rect = ref.current?.getBoundingClientRect();
+      if (rect) setPos(clampPosition(x, y, rect.width, rect.height));
+    };
     // Defer so the opening gesture (contextmenu / long-press) doesn't instantly close
     const t = window.setTimeout(() => {
       document.addEventListener('mousedown', onDoc);
       document.addEventListener('touchstart', onDoc);
       document.addEventListener('keydown', onKey);
+      window.addEventListener('resize', onViewportChange);
+      window.visualViewport?.addEventListener('resize', onViewportChange);
+      window.visualViewport?.addEventListener('scroll', onViewportChange);
     }, 0);
 
     return () => {
@@ -90,8 +102,11 @@ export default function MessageContextMenu({
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('touchstart', onDoc);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('resize', onViewportChange);
+      window.visualViewport?.removeEventListener('scroll', onViewportChange);
     };
-  }, [open, onClose]);
+  }, [open, onClose, x, y]);
 
   if (!open || !message) return null;
 
@@ -107,7 +122,7 @@ export default function MessageContextMenu({
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-[80] min-w-[180px] rounded-2xl border border-hairline/10 bg-[rgb(var(--surface-panel))] shadow-[0_16px_40px_rgba(0,0,0,0.35)] overflow-hidden"
+      className="message-context-menu fixed z-[80] min-w-[180px] rounded-2xl border border-hairline/[0.08] bg-[rgb(var(--surface-panel))] overflow-hidden"
       style={{ left: pos.left, top: pos.top }}
       role="menu"
     >

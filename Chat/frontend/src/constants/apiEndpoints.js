@@ -15,6 +15,16 @@ export const API_ENDPOINTS = {
     START_CHAT: '/chats/private',
     MARK_READ: (chatId) => `/chats/${chatId}/read`,
     UPDATE: (chatId) => `/chats/${chatId}`,
+    MANAGE: '/chats/manage',
+    MANAGE_DETAIL: (chatId) => `/chats/${chatId}/management`,
+    SETTINGS: (chatId) => `/chats/${chatId}/settings`,
+    AVATAR: (chatId) => `/chats/${chatId}/avatar`,
+    MEMBERS: (chatId) => `/chats/${chatId}/members`,
+    MEMBER: (chatId, userId) => `/chats/${chatId}/members/${userId}`,
+    MEMBER_RESTRICTIONS: (chatId, userId) =>
+      `/chats/${chatId}/members/${userId}/restrictions`,
+    ADMINS: (chatId) => `/chats/${chatId}/admins`,
+    ADMIN: (chatId, userId) => `/chats/${chatId}/admins/${userId}`,
     UPLOAD_MEDIA: (chatId) => `/chats/${chatId}/media`,
     MEDIA: (chatId, fileName, storage = 'local') =>
       `/chats/${chatId}/media/${encodeURIComponent(fileName)}?storage=${storage}`,

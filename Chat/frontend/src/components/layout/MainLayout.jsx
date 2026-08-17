@@ -22,6 +22,8 @@ import LanguagePage from '@features/settings/pages/LanguagePage';
 import HelpPage from '@features/settings/pages/HelpPage';
 import PremiumPage from '@features/settings/pages/PremiumPage';
 import BusinessPage from '@features/settings/pages/BusinessPage';
+import ManagedChatsPage from '@features/settings/pages/ManagedChatsPage';
+import ManageChatPage from '@features/settings/pages/ManageChatPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import { ROUTES } from '@constants/routes';
 
@@ -54,6 +56,8 @@ export default function MainLayout() {
           <Route path={ROUTES.SETTINGS_HELP} element={<HelpPage />} />
           <Route path={ROUTES.SETTINGS_PREMIUM} element={<PremiumPage />} />
           <Route path={ROUTES.SETTINGS_BUSINESS} element={<BusinessPage />} />
+          <Route path={ROUTES.SETTINGS_MANAGED_CHATS} element={<ManagedChatsPage />} />
+          <Route path={ROUTES.SETTINGS_MANAGED_CHAT} element={<ManageChatPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
@@ -63,7 +67,7 @@ export default function MainLayout() {
         className="absolute inset-0 z-50 pointer-events-none"
       />
 
-      <div className="absolute inset-x-3 bottom-3 z-40 pointer-events-none">
+      <div className="app-footer-dock absolute bottom-3 z-40 pointer-events-none">
         <div className="pointer-events-auto">
           <Footer />
         </div>

@@ -5,15 +5,13 @@ import ChatBubble from './ChatBubble';
 import MessageContextMenu from './MessageContextMenu';
 import ForwardModal from './ForwardModal';
 import ReplyCrumpleFly from './ReplyCrumpleFly';
+import MediaViewer from './MediaViewer';
 import { useChat } from '@context/ChatContext';
-import { useTheme } from '@context/ThemeContext';
 import { useSettings } from '@context/SettingsContext';
 import { useToast } from '@components/ui/Toast';
 import Spinner from '@components/ui/Spinner';
-import LiquidGlass from '@components/ui/LiquidGlass';
 import ChatWallpaper from './ChatWallpaper';
 import { config } from '@constants/config';
-import { CHAT_INPUT_GLASS, chatGlassOverlay } from '@constants/glass';
 import { chatService } from '@services/chatService';
 import { encodeForwardMessage, parseReplyMessage, parseForwardMessage, summarizeReplyText, findReplyTarget, getMessageMedia, isDownloadableMedia, defaultMediaFileName } from '../utils/messageMeta';
 
@@ -45,11 +43,12 @@ function restoreScrollAnchor(scroller, anchor) {
 export default function PrivateChat() {
   const { activeChat, messages, messagesLoading, typingUsers, deleteMessage, editMessage } =
     useChat();
-  const { isDark } = useTheme();
   const { settings } = useSettings();
   const { addToast } = useToast();
   const messagesEndRef = useRef(null);
   const messagesScrollRef = useRef(null);
+  const chatPaneRef = useRef(null);
+  const composerDockRef = useRef(null);
   const prevMessageCountRef = useRef(0);
   const suppressAutoScrollRef = useRef(false);
   const scrollAnchorRef = useRef(null);
@@ -68,6 +67,7 @@ export default function PrivateChat() {
   const [scrollLocked, setScrollLocked] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
   const [highlightKey, setHighlightKey] = useState(0);
+  const [viewerMedia, setViewerMedia] = useState(null);
   const highlightClearRef = useRef(null);
 
   const cancelStickRaf = useCallback(() => {
@@ -76,6 +76,22 @@ export default function PrivateChat() {
       stickRafRef.current = 0;
     }
   }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const scroller = messagesScrollRef.current;
+    if (!scroller) return;
+    suppressAutoScrollRef.current = false;
+    scrollAnchorRef.current = null;
+    const jump = () => {
+      scroller.scrollTop = scroller.scrollHeight;
+    };
+    jump();
+    cancelStickRaf();
+    stickRafRef.current = requestAnimationFrame(() => {
+      jump();
+      stickRafRef.current = requestAnimationFrame(jump);
+    });
+  }, [cancelStickRaf]);
 
   useEffect(() => {
     setMenu({ open: false, x: 0, y: 0, message: null });
@@ -90,6 +106,7 @@ export default function PrivateChat() {
     setEditingMessage(null);
     setScrollLocked(false);
     setHighlightId(null);
+    setViewerMedia(null);
     if (highlightClearRef.current) {
       highlightClearRef.current();
       highlightClearRef.current = null;
@@ -135,6 +152,33 @@ export default function PrivateChat() {
       stickRafRef.current = requestAnimationFrame(stickToBottom);
     });
   }, [messages, messagesLoading, scrollLocked, cancelStickRaf]);
+
+  useLayoutEffect(() => {
+    const pane = chatPaneRef.current;
+    const composer = composerDockRef.current;
+    if (!pane || !composer) return undefined;
+
+    const syncComposerHeight = () => {
+      pane.style.setProperty('--composer-height', `${Math.ceil(composer.getBoundingClientRect().height)}px`);
+    };
+
+    syncComposerHeight();
+    const observer = new ResizeObserver(syncComposerHeight);
+    observer.observe(composer);
+
+    // Mobile keyboard opening shrinks the visual viewport; keep the latest
+    // messages visible instead of leaving them behind the keyboard.
+    const onViewportResize = () => {
+      syncComposerHeight();
+      if (composer.contains(document.activeElement)) scrollToBottom();
+    };
+    window.visualViewport?.addEventListener('resize', onViewportResize);
+
+    return () => {
+      observer.disconnect();
+      window.visualViewport?.removeEventListener('resize', onViewportResize);
+    };
+  }, [activeChat?.id, scrollToBottom]);
 
   const messagesById = useMemo(() => {
     const map = new Map();
@@ -511,7 +555,8 @@ export default function PrivateChat() {
 
   return (
     <div
-      className="flex flex-col flex-1 h-screen chat-bg-messages min-w-0 relative overflow-hidden"
+      ref={chatPaneRef}
+      className="chat-pane flex flex-col flex-1 chat-bg-messages min-w-0 relative overflow-hidden"
       data-autoplay-gifs={settings.chat.autoPlayGifs !== false ? '1' : '0'}
       data-autoplay-videos={settings.chat.autoPlayVideos ? '1' : '0'}
       data-less-data={settings.data?.useLessData ? '1' : '0'}
@@ -520,28 +565,21 @@ export default function PrivateChat() {
 
       {!activeChat ? (
         <div className="flex-1 flex items-center justify-center relative z-10 px-6 pt-20">
-          <LiquidGlass
-            className="max-w-md rounded-[2rem] shadow-2xl shadow-black/20"
-            contentClassName="flex-col items-center text-center"
-            {...CHAT_INPUT_GLASS}
-            overlay={chatGlassOverlay(isDark)}
-          >
-            <div className="px-8 py-12">
-              <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-gradient-to-br from-npurple-borders/30 to-nsecondary-100/20 border border-white/15 flex items-center justify-center text-3xl animate-float">
-                💬
-              </div>
-              <p className="text-ink text-xl font-semibold">به {config.appName} خوش آمدید</p>
-              <p className="text-ink-secondary text-sm mt-3 leading-7">
-                یک گفتگو از لیست سمت راست انتخاب کنید یا با دکمه + گفتگوی جدید بسازید.
-              </p>
+          <div className="max-w-sm rounded-2xl border border-hairline/[0.08] bg-[rgb(var(--surface-panel))]/90 px-7 py-10 text-center">
+            <div className="mx-auto mb-4 w-11 h-11 rounded-xl bg-surface-muted border border-hairline/[0.08] flex items-center justify-center text-xl text-ink-muted">
+              ◌
             </div>
-          </LiquidGlass>
+            <p className="text-ink text-base font-medium">به {config.appName} خوش آمدید</p>
+            <p className="text-ink-muted text-sm mt-2 leading-6">
+              یک گفتگو از لیست انتخاب کنید یا با دکمه + گفتگوی جدید بسازید.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="relative flex-1 min-h-0">
           <div
             ref={messagesScrollRef}
-            className="absolute inset-0 overflow-y-auto px-3 sm:px-5 pb-28 z-10 pt-2"
+            className="messages-scroller absolute inset-0 overflow-y-auto px-3 sm:px-5 z-10 pt-2"
           >
             <div className="sticky top-0 z-30 -mx-3 sm:-mx-5 px-3 sm:px-5 pointer-events-none">
               <div className="pointer-events-auto">
@@ -608,6 +646,7 @@ export default function PrivateChat() {
                       onOpenMenu={openMenu}
                       onToggleSelect={toggleSelect}
                       onJumpToReply={jumpToMessage}
+                      onOpenMedia={setViewerMedia}
                     />
                   );
                 })}
@@ -632,7 +671,10 @@ export default function PrivateChat() {
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none">
+          <div
+            ref={composerDockRef}
+            className="composer-dock absolute inset-x-0 bottom-0 z-20 pointer-events-none"
+          >
             <div className="pointer-events-auto">
               <TypewriteBox
                 replyTo={replyTo}
@@ -642,6 +684,7 @@ export default function PrivateChat() {
                 editingMessage={editingMessage}
                 onClearEdit={() => setEditingMessage(null)}
                 onConfirmEdit={confirmEdit}
+                onSent={scrollToBottom}
               />
             </div>
           </div>
@@ -658,6 +701,8 @@ export default function PrivateChat() {
           onDone={handleReplyFlyDone}
         />
       )}
+
+      <MediaViewer media={viewerMedia} onClose={() => setViewerMedia(null)} />
 
       <MessageContextMenu
         open={menu.open}

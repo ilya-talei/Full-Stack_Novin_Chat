@@ -2,6 +2,14 @@ import type { PrismaClient } from "../generated/prisma/client.js";
 import type { Services } from "../middlewares/tenantMiddleware.js";
 import { AppError } from "../middlewares/errorMiddleware.js";
 import sharp from "sharp";
+import {
+    assertManagementAccess,
+    assertSendPermission,
+    DEFAULT_CHANNEL_PERMISSIONS,
+    effectivePermissions,
+    getChatAccess,
+    uploadKindPermission,
+} from "./chatPermissions.js";
 
 export type messageType = {
     type: "text";
@@ -37,9 +45,7 @@ class ChatService {
             where: {
                 chat_id: chatId,
                 deleted_at: null,
-                ...(lastReadMessageId
-                    ? { id: { gt: lastReadMessageId } }
-                    : {}),
+                ...(lastReadMessageId ? { id: { gt: lastReadMessageId } } : {}),
             },
         });
     }
@@ -59,10 +65,15 @@ class ChatService {
             },
             select: {
                 last_read_message_id: true,
+                role: true,
+                admin_permissions: true,
+                member_permissions: true,
                 chat: {
                     select: {
                         id: true,
                         type: true,
+                        owner_id: true,
+                        default_permissions: true,
                         pinned_message_id: true,
                         chat_name: true,
                         description: true,
@@ -149,10 +160,15 @@ class ChatService {
                         pinned_message_id: chat.pinned_message_id,
                         unread,
                         memberCount: 2,
+                        role: "member" as const,
+                        permissions: {},
+                        canManage: false,
                     };
                 }
 
                 if (chat.type === "group" || chat.type === "channel") {
+                    const access = await getChatAccess(this.prisma, chat.id, userId);
+                    const role = access.role;
                     return {
                         id: chat.id,
                         type: chat.type as "group" | "channel",
@@ -164,6 +180,9 @@ class ChatService {
                         unread,
                         memberCount: chat._count.members,
                         subscriberCount: chat.type === "channel" ? chat._count.members : undefined,
+                        role,
+                        permissions: effectivePermissions(access),
+                        canManage: role === "owner" || role === "admin",
                     };
                 }
 
@@ -183,10 +202,15 @@ class ChatService {
             },
             select: {
                 last_read_message_id: true,
+                role: true,
+                admin_permissions: true,
+                member_permissions: true,
                 chat: {
                     select: {
                         id: true,
                         type: true,
+                        owner_id: true,
+                        default_permissions: true,
                         chat_name: true,
                         description: true,
                         avatar_file_name: true,
@@ -268,9 +292,13 @@ class ChatService {
                 pinned_message_id: chat.pinned_message_id,
                 unread,
                 memberCount: 2,
+                role: "member" as const,
+                permissions: {},
+                canManage: false,
             };
         }
 
+        const access = await getChatAccess(this.prisma, chatId, userId);
         return {
             id: chat.id,
             type: chat.type as "group" | "channel",
@@ -282,6 +310,9 @@ class ChatService {
             unread,
             memberCount: chat._count.members,
             subscriberCount: chat.type === "channel" ? chat._count.members : undefined,
+            role: access.role,
+            permissions: effectivePermissions(access),
+            canManage: access.role === "owner" || access.role === "admin",
         };
     }
 
@@ -313,9 +344,10 @@ class ChatService {
                 chat_name,
                 description: description ?? "",
                 owner_id: userId,
+                ...(type === "channel" ? { default_permissions: DEFAULT_CHANNEL_PERMISSIONS } : {}),
                 members: {
                     create: [
-                        { user_id: userId },
+                        { user_id: userId, role: "owner" },
                         ...uniqueMemberIds.map((id) => ({ user_id: id })),
                     ],
                 },
@@ -377,6 +409,7 @@ class ChatService {
         chat_name: string | null,
         description: string | null,
     ) {
+        await assertManagementAccess(this.prisma, chatId, userId, "change_info");
         const data: { chat_name?: string; description?: string } = {};
         if (chat_name !== null) data.chat_name = chat_name;
         if (description !== null) data.description = description;
@@ -385,7 +418,6 @@ class ChatService {
             where: {
                 id: chatId,
                 type: { in: ["group", "channel"] },
-                members: { some: { user_id: userId, deleted_at: null } },
                 deleted_at: null,
             },
             data,
@@ -500,6 +532,7 @@ class ChatService {
     }
 
     async uploadAvatar(file: Express.Multer.File, chatId: number, userId: number) {
+        await assertManagementAccess(this.prisma, chatId, userId, "change_info");
         const membership = await this.prisma.chatMember.findFirst({
             where: {
                 chat_id: chatId,
@@ -529,7 +562,12 @@ class ChatService {
 
     async assertMember(chatId: number, userId: number) {
         const membership = await this.prisma.chatMember.findFirst({
-            where: { chat_id: chatId, user_id: userId, deleted_at: null, chat: { deleted_at: null } },
+            where: {
+                chat_id: chatId,
+                user_id: userId,
+                deleted_at: null,
+                chat: { deleted_at: null },
+            },
         });
         if (!membership) {
             throw new AppError("مکالمه مربوطه پیدا نشد", 404);
@@ -547,7 +585,7 @@ class ChatService {
         kind: string,
         tenantId: number,
     ) {
-        await this.assertMember(chatId, userId);
+        await assertSendPermission(this.prisma, chatId, userId, uploadKindPermission(kind));
 
         const mime = file.mimetype || "application/octet-stream";
         const originalName = file.originalname || "file";
